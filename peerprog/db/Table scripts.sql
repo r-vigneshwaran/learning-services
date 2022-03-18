@@ -72,7 +72,7 @@ ALTER TABLE IF EXISTS public."ORGANIZATION"
 
 -- DROP TABLE IF EXISTS public."ROLES";
 
-CREATE TABLE IF NOT EXISTS public."ROLES"
+CREATE TABLE IF NOT EXISTS public."ROLES" 
 (
     "ID" numeric NOT NULL,
     "NAME" text COLLATE pg_catalog."default" NOT NULL,
@@ -127,7 +127,7 @@ ALTER TABLE IF EXISTS public."TRIPS"
 
 CREATE TABLE IF NOT EXISTS public."USERS"
 (
-    "ID" numeric NOT NULL,
+    "ID" uuid numeric NOT NULL,
     "NAME" text COLLATE pg_catalog."default" NOT NULL,
     "EMAIL" text COLLATE pg_catalog."default",
     "MOBILE" text COLLATE pg_catalog."default" NOT NULL,
