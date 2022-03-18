@@ -1,14 +1,20 @@
-export const Header = {
-    resCode: "",
-    resMsg: ""
-}
+const Header = {
+  resCode: '',
+  resMsg: ''
+};
 
-export const Body = {
-    data: {},
-    error: ""
-}
+const Body = {
+  data: {},
+  error: ''
+};
 
-export const responseBody = {
-    Header,
-    Body
-}
+const responseBody = {
+  Header,
+  Body
+};
+
+module.exports = {
+  Header,
+  Body,
+  responseBody
+};

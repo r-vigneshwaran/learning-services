@@ -1,12 +1,21 @@
-const Pool = require('pg').Pool
-const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'dev',
-    password: 'root',
-    port: 5432,
-})
+const Pool = require('pg').Pool;
+// const pool = new Pool({
+//   user: 'postgres',
+//   host: 'localhost',
+//   database: 'dev',
+//   password: 'root',
+//   port: 5432
+// });
 
-export const getUsers = async () => {
-    return await pool.query(`SELECT * FROM "USERS"`)
-}
+const pool = new Pool({
+  user: 'postgres',
+  password: 'admin123',
+  host: 'localhost',
+  port: 5432,
+  database: 'egadi'
+});
+
+const getUsers = async () => {
+  return await pool.query(`SELECT * FROM "USERS"`);
+};
+module.exports = { getUsers, pool };
