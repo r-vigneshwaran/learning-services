@@ -17,8 +17,8 @@ const authorization = require('./middleware/authorization');
 
 var router = require('express').Router();
 var bodyParser = require('body-parser');
-const { verifyRefreshToken } = require('./utils/jwtGenerator');
 const { home } = require('./controller/dashboard');
+const { createProfile } = require('./controller/driverController');
 
 router.use(bodyParser.urlencoded({ extended: false }));
 // router.get('/', ping);
@@ -36,5 +36,8 @@ router.get('/auth/logout', logout);
 
 // dashboard routes
 router.get('/dashboard', home);
+
+// drivers route
+router.post('/api/create-profile', authorization, createProfile);
 
 module.exports = router;

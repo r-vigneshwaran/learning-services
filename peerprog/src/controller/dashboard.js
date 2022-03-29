@@ -4,7 +4,7 @@ exports.home = async (req, res) => {
   try {
     // res.user has the payload
     const { user } = req;
-    const userData = await pool.query('SELECT * FROM "USERS"');
+    const userData = await pool.query('SELECT * FROM "VEHICLE"');
     res.json({ data: userData.rows });
   } catch (error) {
     console.log(error.message);

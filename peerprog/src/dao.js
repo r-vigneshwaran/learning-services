@@ -12,7 +12,7 @@ const pool = new Pool({
   password: 'admin123',
   host: 'localhost',
   port: 5432,
-  database: 'egadi'
+  database: 'e-gadi'
 });
 
 const getUsers = async () => {
