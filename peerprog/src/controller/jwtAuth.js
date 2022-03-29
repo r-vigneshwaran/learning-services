@@ -44,10 +44,9 @@ exports.register = async (req, res) => {
     const { access_token, refresh_token } = jwtGenerator(email, expiry);
 
     // 4. enter the user inside our database
-    const uuid = crypto.randomBytes(6 * 6).toString('base64');
     const newUser = await pool.query(
-      'INSERT INTO "USERS"("ID","NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [uuid, name, email, bcryptPassword, refresh_token, 1, 'CUSTOMER']
+      'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [name, email, bcryptPassword, refresh_token, 1, 'CUSTOMER', false]
     );
 
     delete newUser['rows'][0]['REFRESH_TOKEN'];
@@ -188,6 +187,9 @@ exports.refreshToken = async (req, res) => {
         return res.sendStatus(403);
 
       const newToken = jwtAccessGenerator(payload.user);
+
+      delete foundUser['rows'][0]['REFRESH_TOKEN'];
+      delete foundUser['rows'][0]['PASSWORD'];
 
       res.json({ token: newToken.access_token, userInfo: foundUser.rows[0] });
     }

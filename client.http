@@ -40,3 +40,19 @@ Content-Type: application/json
 GET http://localhost:8000/dashboard HTTP/1.1
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxwaGFAZ21haWwuY29tIiwiaWF0IjoxNjQ3MDA3Nzg2LCJleHAiOjE2NDcwMDgwODZ9.dkMMFShkhpAwWlsNSZnhPUwADDhn4dTrXiJxg7oJXxw
+
+
+###
+POST http://localhost:8000/api/create-profile HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "vigneshwaran",
+  "code": "1234567",
+  "mobile":"123",
+  "id":"2",
+  "orgName":"blue Origin",
+  "city":"coimbatore"
+}
+
+

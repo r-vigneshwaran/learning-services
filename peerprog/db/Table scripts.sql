@@ -17,9 +17,9 @@ CREATE DATABASE dev
 
 CREATE TABLE IF NOT EXISTS public."BOOKING"
 (
-    "ID" numeric NOT NULL,
-    "TRIP_ID" numeric NOT NULL,
-    "USER_ID" numeric NOT NULL,
+    "ID" text NOT NULL,
+    "TRIP_ID" text NOT NULL,
+    "USER_ID" text NOT NULL,
     "QUOTE" text COLLATE pg_catalog."default",
     "STATUS" text COLLATE pg_catalog."default",
     CONSTRAINT "BOOKING_pkey" PRIMARY KEY ("ID"),
@@ -47,11 +47,11 @@ ALTER TABLE IF EXISTS public."BOOKING"
 
 CREATE TABLE IF NOT EXISTS public."ORGANIZATION"
 (
-    "ID" numeric NOT NULL,
+    "ID" text NOT NULL,
     "NAME" text COLLATE pg_catalog."default" NOT NULL,
     "IS_ACTIVE" text COLLATE pg_catalog."default",
     "CODE" text COLLATE pg_catalog."default" NOT NULL,
-    "ADMIN_ID" numeric,
+    "ADMIN_ID" text,
     CONSTRAINT "ORGANIZATION_pkey" PRIMARY KEY ("ID"),
     CONSTRAINT "USER_FK" FOREIGN KEY ("ADMIN_ID")
         REFERENCES public."USERS" ("ID") MATCH SIMPLE
@@ -74,7 +74,7 @@ ALTER TABLE IF EXISTS public."ORGANIZATION"
 
 CREATE TABLE IF NOT EXISTS public."ROLES" 
 (
-    "ID" numeric NOT NULL,
+    "ID" text NOT NULL,
     "NAME" text COLLATE pg_catalog."default" NOT NULL,
     "IS_ACTIVE" text COLLATE pg_catalog."default",
     "CODE" text COLLATE pg_catalog."default" NOT NULL,
@@ -94,17 +94,22 @@ ALTER TABLE IF EXISTS public."ROLES"
 
 CREATE TABLE IF NOT EXISTS public."TRIPS"
 (
-    "ID" numeric NOT NULL,
+    "ID" text NOT NULL,
     "FROM" text COLLATE pg_catalog."default" NOT NULL,
     "TO" text COLLATE pg_catalog."default" NOT NULL,
     "DATE_TIME" timestamp without time zone,
     "CAPACITY" text COLLATE pg_catalog."default",
-    "CREATED_BY" numeric NOT NULL,
+    "CREATED_BY" text NOT NULL,
     "IS_ACCEPTED" text COLLATE pg_catalog."default",
-    "ORG_ID" numeric NOT NULL,
+    "ORG_ID" text NOT NULL,
+    "VEHICLE_ID" text NOT NULL,
     CONSTRAINT "TRIPS_pkey" PRIMARY KEY ("ID"),
     CONSTRAINT "ORG_FK" FOREIGN KEY ("ORG_ID")
         REFERENCES public."ORGANIZATION" ("ID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT "VEHICLE_FK" FOREIGN KEY ("VEHICLE_ID")
+        REFERENCES public."VEHICLE" ("ID") MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION,
     CONSTRAINT "USER_FK" FOREIGN KEY ("CREATED_BY")
@@ -127,12 +132,12 @@ ALTER TABLE IF EXISTS public."TRIPS"
 
 CREATE TABLE IF NOT EXISTS public."USERS"
 (
-    "ID" uuid numeric NOT NULL,
+    "ID" uuid text NOT NULL,
     "NAME" text COLLATE pg_catalog."default" NOT NULL,
     "EMAIL" text COLLATE pg_catalog."default",
     "MOBILE" text COLLATE pg_catalog."default" NOT NULL,
     "ADDRESS" text COLLATE pg_catalog."default",
-    "ORG_ID" numeric NOT NULL,
+    "ORG_ID" text NOT NULL,
     "IS_ACTIVE" text COLLATE pg_catalog."default",
     CONSTRAINT "USERS_pkey" PRIMARY KEY ("ID"),
     CONSTRAINT "GROUP_FK" FOREIGN KEY ("ORG_ID")
@@ -156,9 +161,9 @@ ALTER TABLE IF EXISTS public."USERS"
 
 CREATE TABLE IF NOT EXISTS public."USER_ROLES"
 (
-    "UR_ID" numeric NOT NULL,
-    "USER_ID" numeric NOT NULL,
-    "ROLE_ID" numeric NOT NULL,
+    "UR_ID" text NOT NULL,
+    "USER_ID" text NOT NULL,
+    "ROLE_ID" text NOT NULL,
     "IS_ACTIVE" text COLLATE pg_catalog."default",
     CONSTRAINT "USER_ROLES_pkey" PRIMARY KEY ("UR_ID"),
     CONSTRAINT "ROLE_FK" FOREIGN KEY ("ROLE_ID")
@@ -190,10 +195,12 @@ CREATE TABLE IF NOT EXISTS public."VEHICLE"
     "REG_NO" text COLLATE pg_catalog."default" NOT NULL,
     "CAPACITY" text COLLATE pg_catalog."default" NOT NULL,
     "IS_ACTIVE" text COLLATE pg_catalog."default",
-    "ORG_ID" numeric NOT NULL,
+    "ORG_ID" text NOT NULL,
     "CAPACITY_UNIT" text COLLATE pg_catalog."default" NOT NULL,
-    "ID" numeric NOT NULL,
+    "ID" text NOT NULL,
     "TYPE" text COLLATE pg_catalog."default" NOT NULL,
+    "IMAGE" text COLLATE pg_catalog."default",
+    "VEHICLE_TYPE" text COLLATE pg_catalog."default",
     CONSTRAINT "VEHICLE_pkey" PRIMARY KEY ("ID"),
     CONSTRAINT "ORG_FK" FOREIGN KEY ("ORG_ID")
         REFERENCES public."ORGANIZATION" ("ID") MATCH SIMPLE

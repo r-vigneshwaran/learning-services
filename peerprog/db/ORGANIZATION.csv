@@ -1,3 +1,3 @@
-ID,NAME,IS_ACTIVE,CODE
-1,"Viki travels","Y","VIKI_TRAVELS"
-2,"Customers","Y","CUSTOMERS"
+NAME,IS_ACTIVE,CODE
+Viki travels,Y,VIKI_TRAVELS
+Customers,Y,CUSTOMERS
