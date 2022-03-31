@@ -1,3 +1,4 @@
+const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
 const { pool } = require('../dao');
 
 exports.createProfile = async (req, res) => {
@@ -30,8 +31,8 @@ exports.createProfile = async (req, res) => {
     );
 
     const updateUser = await pool.query(
-      'UPDATE "USERS" SET "MOBILE" = $1, "IS_REGISTERED" = $2, "ORG_ID" = $3 WHERE "ID"= $4 RETURNING *',
-      [mobile, true, newOrg.rows[0].ID, id]
+      'UPDATE "USERS" SET "MOBILE" = $1, "IS_REGISTERED" = $2, "ORG_ID" = $3, "ROLE" = $4, "ROLE_CODE" = $5 WHERE "ID"= $6 RETURNING *',
+      [mobile, true, newOrg.rows[0].ID, ROLE_NAME.DRIVER, ROLE_CODE.DRIVER, id]
     );
     res.json(newOrg.rows[0]);
   } catch (error) {
