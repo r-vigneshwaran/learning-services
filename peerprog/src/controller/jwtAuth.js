@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { jwtGenerator, jwtAccessGenerator } = require('../utils/jwtGenerator');
+const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
 
 const updateRefreshToken = async (token, userId) => {
   const response = await pool.query(
@@ -17,12 +18,13 @@ const updateRefreshToken = async (token, userId) => {
 exports.register = async (req, res) => {
   try {
     // 1. destructor thr req.body (name,email,password)
-    const { name, email, password, rememberMe } = req.body;
+    const { name, email, password, rememberMe, eSign } = req.body;
     if (!name) return res.status(400).json({ message: 'username is required' });
     if (!password || !email)
       return res
         .status(400)
         .json({ message: 'Email and Password is required' });
+    if (!eSign) return res.status(400).json({ message: 'missing E-sign' });
 
     // 2. check if user exists (throw error if exists)
     const user = await pool.query(`SELECT * FROM "USERS" WHERE "EMAIL" = $1`, [
@@ -45,8 +47,18 @@ exports.register = async (req, res) => {
 
     // 4. enter the user inside our database
     const newUser = await pool.query(
-      'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [name, email, bcryptPassword, refresh_token, 1, 'CUSTOMER', false]
+      'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED","ROLE_CODE","E_SIGN") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [
+        name,
+        email,
+        bcryptPassword,
+        refresh_token,
+        1,
+        ROLE_NAME.INCOMPLETE_PROFILE,
+        false,
+        ROLE_CODE.INCOMPLETE_PROFILE,
+        eSign
+      ]
     );
 
     delete newUser['rows'][0]['REFRESH_TOKEN'];

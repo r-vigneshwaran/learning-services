@@ -207,6 +207,24 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS public."BOOKING"
     OWNER to postgres;
 	
+-- DROP TABLE IF EXISTS public."VEHICLE_IMAGES";
+
+CREATE TABLE IF NOT EXISTS public."VEHICLE_IMAGES"
+(
+    "ID" integer NOT NULL DEFAULT nextval('"VEHICLE_IMAGES_ID_seq"'::regclass),
+    "VEHICLE_ID" integer NOT NULL,
+    "IMAGE" text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "VEH_IMG_pkey" PRIMARY KEY ("ID"),
+    CONSTRAINT "VEH_IMG_FK" FOREIGN KEY ("VEHICLE_ID")
+        REFERENCES public."VEHICLE" ("ID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."VEHICLE_IMAGES"
+    OWNER to postgres;
 	
 
 
