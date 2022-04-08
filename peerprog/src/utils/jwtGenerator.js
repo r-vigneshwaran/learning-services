@@ -28,8 +28,6 @@ function jwtAccessGenerator(user_id) {
 function verifyRefreshToken(req, res, next) {
   const refresh_token = req.cookies?.refresh_token;
 
-  console.log(refresh_token);
-
   if (!refresh_token)
     return res.sendStatus(401).json({ error: 'No Refresh Token Found' });
 
