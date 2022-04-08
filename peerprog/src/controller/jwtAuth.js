@@ -5,20 +5,20 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { jwtGenerator, jwtAccessGenerator } = require('../utils/jwtGenerator');
 const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
-
-const updateRefreshToken = async (token, userId) => {
-  const response = await pool.query(
-    `UPDATE "USERS" SET "REFRESH_TOKEN" = $1 WHERE "ID" = $2 RETURNING *`,
-    [token, userId]
-  );
-  return response;
-};
+const sendVerificationcode = require('./verification');
+const {
+  updateRefreshToken,
+  findUser,
+  findUserWithRefreshToken,
+  findUserWithId
+} = require('../utils/helper');
+const { deleteSensitive } = require('../utils/utility');
 
 // // registering
 exports.register = async (req, res) => {
   try {
     // 1. destructor thr req.body (name,email,password)
-    const { name, email, password, rememberMe, eSign } = req.body;
+    const { name, email, password, rememberMe, eSign, currentStep } = req.body;
     if (!name) return res.status(400).json({ message: 'username is required' });
     if (!password || !email)
       return res
@@ -27,9 +27,7 @@ exports.register = async (req, res) => {
     if (!eSign) return res.status(400).json({ message: 'missing E-sign' });
 
     // 2. check if user exists (throw error if exists)
-    const user = await pool.query(`SELECT * FROM "USERS" WHERE "EMAIL" = $1`, [
-      email
-    ]);
+    const user = await findUser(email);
     if (user.rows.length !== 0) {
       return res
         .status(409)
@@ -45,9 +43,11 @@ exports.register = async (req, res) => {
     const expiry = rememberMe ? '14d' : '1d';
     const { access_token, refresh_token } = jwtGenerator(email, expiry);
 
+    const nextStep = currentStep + 1;
+
     // 4. enter the user inside our database
     const newUser = await pool.query(
-      'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED","ROLE_CODE","E_SIGN") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED","ROLE_CODE","E_SIGN", "CURRENT_STEP") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
       [
         name,
         email,
@@ -57,12 +57,12 @@ exports.register = async (req, res) => {
         ROLE_NAME.INCOMPLETE_PROFILE,
         false,
         ROLE_CODE.INCOMPLETE_PROFILE,
-        eSign
+        eSign,
+        nextStep
       ]
     );
 
-    delete newUser['rows'][0]['REFRESH_TOKEN'];
-    delete newUser['rows'][0]['PASSWORD'];
+    const userData = deleteSensitive(newUser);
 
     const expiryDays = rememberMe ? 14 : 1;
     res.cookie('refresh_token', refresh_token, {
@@ -71,19 +71,23 @@ exports.register = async (req, res) => {
       sameSite: 'None',
       secure: true
     });
+    const id = userData.ID;
+
+    const message = sendVerificationcode({ id, email });
+
     res.status(201).json({
+      otpStatus: message,
       message: `New user ${name} created successfully`,
       token: access_token,
       refresh_token: refresh_token,
-      userInfo: newUser.rows[0]
+      userInfo: userData
     });
   } catch (err) {
-    console.log(err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
-// // login route
+// login route
 exports.login = async (req, res) => {
   try {
     // 1. destructor thr req.body (name,email,password)
@@ -95,9 +99,8 @@ exports.login = async (req, res) => {
         .json({ message: 'Email and Password is required' });
 
     // 2. check if user exists (throw error if not exists)
-    const user = await pool.query('SELECT * FROM "USERS" WHERE "EMAIL" = $1', [
-      email
-    ]);
+    const user = await findUser(email);
+
     if (user.rows.length === 0) {
       return res
         .status(401)
@@ -126,15 +129,13 @@ exports.login = async (req, res) => {
     // 5. update refresh tokens
     await updateRefreshToken(refresh_token, user.rows[0].ID);
 
-    delete user['rows'][0]['REFRESH_TOKEN'];
-    delete user['rows'][0]['PASSWORD'];
+    const userData = deleteSensitive(user);
 
     res.json({
       token: access_token,
-      userInfo: user.rows[0]
+      userInfo: userData
     });
   } catch (err) {
-    console.log(err.message);
     res.status(500).json({ error: err.message });
   }
 };
@@ -144,7 +145,6 @@ exports.authorize = (req, res) => {
   try {
     res.json(true);
   } catch (error) {
-    console.log(error.message);
     res.status(500).send({ error: error.message });
   }
 };
@@ -156,9 +156,7 @@ exports.isAuthenticated = async (req, res) => {
 
     const refresh_token = cookies.refresh_token;
 
-    const foundUser = await pool.query(
-      `SELECT * FROM "USERS" WHERE "REFRESH_TOKEN" ='${refresh_token}'`
-    );
+    const foundUser = await findUserWithRefreshToken(refresh_token);
 
     if (foundUser.rowCount === 0) return res.sendStatus(403);
 
@@ -173,39 +171,38 @@ exports.isAuthenticated = async (req, res) => {
       }
     );
   } catch (error) {
-    console.log(error.message);
     res.status(500).send({ error: error.message });
   }
 };
 
 exports.refreshToken = async (req, res) => {
   const cookies = req.cookies;
+  try {
+    if (!cookies?.refresh_token) return res.sendStatus(401);
 
-  if (!cookies?.refresh_token) return res.sendStatus(401);
+    const refresh_token = cookies.refresh_token;
 
-  const refresh_token = cookies.refresh_token;
+    const foundUser = await findUserWithRefreshToken(refresh_token);
 
-  const foundUser = await pool.query(
-    `SELECT * FROM "USERS" WHERE "REFRESH_TOKEN" ='${refresh_token}'`
-  );
+    if (foundUser.rowCount === 0) return res.sendStatus(403);
 
-  if (foundUser.rowCount === 0) return res.sendStatus(403);
+    jwt.verify(
+      refresh_token,
+      process.env.JWT_REFRESH_TOKEN,
+      async (error, payload) => {
+        if (error || payload.user !== foundUser.rows[0].EMAIL)
+          return res.sendStatus(403);
 
-  jwt.verify(
-    refresh_token,
-    process.env.JWT_REFRESH_TOKEN,
-    async (error, payload) => {
-      if (error || payload.user !== foundUser.rows[0].EMAIL)
-        return res.sendStatus(403);
+        const newToken = jwtAccessGenerator(payload.user);
 
-      const newToken = jwtAccessGenerator(payload.user);
+        const userData = deleteSensitive(foundUser);
 
-      delete foundUser['rows'][0]['REFRESH_TOKEN'];
-      delete foundUser['rows'][0]['PASSWORD'];
-
-      res.json({ token: newToken.access_token, userInfo: foundUser.rows[0] });
-    }
-  );
+        res.json({ token: newToken.access_token, userInfo: userData });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // // refresh your access token here
@@ -217,9 +214,7 @@ exports.logout = async (req, res) => {
 
     const refresh_token = cookies.refresh_token;
 
-    const foundUser = await pool.query(
-      `SELECT * FROM "USERS" WHERE "REFRESH_TOKEN" ='${refresh_token}'`
-    );
+    const foundUser = await findUserWithRefreshToken(refresh_token);
 
     if (foundUser.rowCount === 0) {
       res.clearCookie('refresh_token', {
@@ -243,7 +238,44 @@ exports.logout = async (req, res) => {
 
     return res.status(204).json({ msg: 'Logged out successfully' });
   } catch (error) {
-    console.log(error.message);
-    res.status(401).send({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  let { id, uniqueString, currentStep } = req.body;
+  if (!id) return res.status(400).json({ message: 'user id is missing' });
+  try {
+    const user = await findUserWithId(id);
+    if (user.rowCount === 0)
+      return res.status(403).json({
+        message:
+          "Account record doesn't exist or has been verified already. please sign up or login  "
+      });
+    const { EXPIRES_AT, OTP } = user.rows[0];
+
+    if (EXPIRES_AT < Date.now()) {
+      await pool.query('UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2', [
+        null,
+        null
+      ]);
+      return res.status(400).json({ message: 'Otp has been Expired' });
+    }
+    const validOtp = await bcrypt.compare(
+      uniqueString.toString(),
+      OTP.toString()
+    );
+
+    if (!validOtp) return res.status(400).json({ message: 'Otp is Incorrect' });
+
+    const nextStep = currentStep + 1;
+
+    const newUser = await pool.query(
+      'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "VERIFIED" = $3, "CURRENT_STEP" = $4 WHERE "ID" = $5 RETURNING *',
+      [null, null, true, nextStep, id]
+    );
+    res.status(200).json({ verified: true, userInfo: newUser.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
