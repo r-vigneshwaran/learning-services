@@ -17,9 +17,7 @@ const { deleteSensitive } = require('../utils/utility');
 // // registering
 exports.register = async (req, res) => {
   try {
-    // 1. destructor thr req.body (name,email,password)
-    const { name, email, password, rememberMe, eSign, currentStep } = req.body;
-    if (!name) return res.status(400).json({ message: 'username is required' });
+    const { email, password, rememberMe, eSign, currentStep } = req.body;
     if (!password || !email)
       return res
         .status(400)
@@ -44,7 +42,7 @@ exports.register = async (req, res) => {
     const { access_token, refresh_token } = jwtGenerator(email, expiry);
 
     const nextStep = currentStep + 1;
-
+    const name = 'user';
     // 4. enter the user inside our database
     const newUser = await pool.query(
       'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED","ROLE_CODE","E_SIGN", "CURRENT_STEP") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -77,7 +75,6 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       otpStatus: message,
-      message: `New user ${name} created successfully`,
       token: access_token,
       refresh_token: refresh_token,
       userInfo: userData
@@ -90,7 +87,6 @@ exports.register = async (req, res) => {
 // login route
 exports.login = async (req, res) => {
   try {
-    // 1. destructor thr req.body (name,email,password)
     const { email, password, rememberMe } = req.body;
 
     if (!password || !email)
@@ -266,7 +262,8 @@ exports.verifyEmail = async (req, res) => {
       OTP.toString()
     );
 
-    if (!validOtp) return res.status(400).json({ message: 'Otp is Incorrect' });
+    if (!validOtp)
+      return res.status(400).json({ message: 'The OTP provided is incorrect' });
 
     const nextStep = currentStep + 1;
 
@@ -274,7 +271,29 @@ exports.verifyEmail = async (req, res) => {
       'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "VERIFIED" = $3, "CURRENT_STEP" = $4 WHERE "ID" = $5 RETURNING *',
       [null, null, true, nextStep, id]
     );
-    res.status(200).json({ verified: true, userInfo: newUser.rows[0] });
+    res.status(200).json({
+      verified: true,
+      userInfo: newUser.rows[0],
+      message: 'Verification completed successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(404).json({ message: 'Missing parameter' });
+
+  try {
+    const user = await findUserWithId(id);
+
+    if (user.rowCount === 0)
+      return res.status(401).json({ message: 'User not found' });
+
+    await pool.query('DELETE FROM "USERS" WHERE "ID" = $1', [id]);
+
+    res.status(200).json({ userInfo: null, currentStep: 1 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

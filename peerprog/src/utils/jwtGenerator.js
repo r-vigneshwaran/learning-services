@@ -10,7 +10,7 @@ function jwtGenerator(user_id, expiry) {
     expiresIn: '5m'
   });
   const refresh_token = jwt.sign(payload, process.env.JWT_REFRESH_TOKEN, {
-    expiresIn: '14d'
+    expiresIn: expiry ? expiry : '14d'
   });
   return { access_token, refresh_token };
 }

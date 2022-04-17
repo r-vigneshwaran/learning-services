@@ -7,15 +7,12 @@ const credentials = require('./src/config/credentials');
 const corsOptions = require('./src/config/corsOptions');
 var bodyParser = require('body-parser');
 
-app.use(express.json({ limit: '5mb' }));
 app.use(cookieParser());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(
   bodyParser.urlencoded({
     limit: '50mb',
-    extended: true,
-    parameterLimit: 50000,
-    type: 'application/x-www-form-urlencoded'
+    extended: true
   })
 );
 
