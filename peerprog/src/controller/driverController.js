@@ -3,7 +3,7 @@ const { pool } = require('../dao');
 const { findUserWithId, findVehicleWithId } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
-exports.createProfile = async (req, res) => {
+exports.createDriverProfile = async (req, res) => {
   try {
     const {
       id,
@@ -18,7 +18,9 @@ exports.createProfile = async (req, res) => {
       yearOfExperience,
       licenceValidity,
       aadharNumber,
-      userImage
+      userImage,
+      ownerShip,
+      email
     } = req.body;
     if (
       !name ||
@@ -32,7 +34,8 @@ exports.createProfile = async (req, res) => {
       !yearOfExperience ||
       !licenceValidity ||
       !aadharNumber ||
-      !userImage
+      !userImage ||
+      !ownerShip
     )
       return res.status(400).json({ message: 'insufficent data' });
 
@@ -51,8 +54,9 @@ exports.createProfile = async (req, res) => {
       [orgName, isActive, code]
     );
     const nextStep = currentStep + 1;
+    const personalEmail = email ? email : null;
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "MOBILE" = $1, "ORG_ID" = $2, "ROLE" = $3, "ROLE_CODE" = $4, "CURRENT_STEP" = $5, "DRIVER_LICENCE_NO" = $6, "YEAR_OF_EXPERIENCE" = $7, "DRIVER_LICENCE_VALIDITY" = $8, "AADHAR_NUMBER" = $9, "USER_IMAGE" = $10 WHERE "ID"= $11 RETURNING *',
+      'UPDATE "USERS" SET "MOBILE" = $1, "ORG_ID" = $2, "ROLE" = $3, "ROLE_CODE" = $4, "CURRENT_STEP" = $5, "DRIVER_LICENCE_NO" = $6, "YEAR_OF_EXPERIENCE" = $7, "DRIVER_LICENCE_VALIDITY" = $8, "AADHAR_NUMBER" = $9, "USER_IMAGE" = $10, "OWNERSHIP" = $11, "CITY" = $12, "PERSONAL_EMAIL" = $13, "NAME" = $14 WHERE "ID"= $15 RETURNING *',
       [
         mobile,
         newOrg.rows[0].ID,
@@ -64,6 +68,10 @@ exports.createProfile = async (req, res) => {
         licenceValidity,
         aadharNumber,
         userImage,
+        ownerShip,
+        city,
+        personalEmail,
+        name,
         id
       ]
     );
@@ -72,7 +80,75 @@ exports.createProfile = async (req, res) => {
     res.json({ userInfo: userData });
   } catch (error) {
     console.log(error);
-    res.status(500).json(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+exports.editProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      orgName,
+      mobile,
+      licenceNumber,
+      yearOfExperience,
+      licenceValidity,
+      aadharNumber,
+      ownerShip,
+      orgId,
+      code
+    } = req.body;
+    if (
+      !name ||
+      !id ||
+      !orgName ||
+      !mobile ||
+      !licenceNumber ||
+      !yearOfExperience ||
+      !licenceValidity ||
+      !aadharNumber ||
+      !ownerShip ||
+      !code ||
+      !orgId
+    )
+      return res.status(400).json({ message: 'insufficent data' });
+
+    const user = await findUserWithId(id);
+    if (user.rowCount === 0)
+      return res.status(401).json({ message: 'User not found' });
+
+    const organization = await pool.query(
+      'SELECT * FROM "ORGANIZATION" WHERE "ID" = $1',
+      [orgId]
+    );
+
+    if (organization.rowCount === 0)
+      return res.status(400).json({ message: `origanization does not exist` });
+
+    const updatedOrg = await pool.query(
+      'UPDATE "ORGANIZATION" SET "NAME" = $1, "CODE" = $2 WHERE "ID" = $3 RETURNING *',
+      [orgName, code, orgId]
+    );
+    console.log(updatedOrg.rows[0], 'updatedOrg');
+    const newUser = await pool.query(
+      'UPDATE "USERS" SET "MOBILE" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6, "NAME" = $7  WHERE "ID"= $8 RETURNING *',
+      [
+        mobile,
+        licenceNumber,
+        yearOfExperience,
+        licenceValidity,
+        aadharNumber,
+        ownerShip,
+        name,
+        id
+      ]
+    );
+    const userData = deleteSensitive(newUser);
+
+    res.json({ profile: userData, organization: updatedOrg.rows[0] });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -337,99 +413,6 @@ exports.completeRegistration = async (req, res) => {
     res.status(200).json({
       message: 'Registration Completed Successfully',
       userInfo: userData
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.addVehicleAvailability = async (req, res) => {
-  const {
-    fromDate,
-    toDate,
-    fromLocation,
-    toLocation,
-    userId,
-    vehicleId,
-    orgId,
-    availableCapacity,
-    price
-  } = req.body;
-  if (
-    !fromDate ||
-    !toDate ||
-    !fromLocation ||
-    !toLocation ||
-    !userId ||
-    !vehicleId ||
-    !orgId ||
-    !availableCapacity ||
-    !price
-  )
-    return res.status(404).json({ message: 'insufficient data' });
-
-  try {
-    const user = await findUserWithId(userId);
-    if (user.rowCount === 0) {
-      return res.status(401).json({ message: 'User not found' });
-    }
-
-    const isVerified = user.rows[0].VERIFIED;
-    const isRegistered = user.rows[0].IS_REGISTERED;
-
-    if (!isVerified)
-      return res.status(403).json({
-        message: 'Please verify your account to add vehicle to your profile'
-      });
-
-    if (!isRegistered)
-      return res.status(403).json({
-        message: 'Please Register your account to add vehicle to your profile'
-      });
-
-    const vehicle = await pool.query(
-      'SELECT * FROM "VEHICLE" LEFT JOIN "VEHICLE_IMAGES" ON "VEHICLE_IMAGES"."VEHICLE_ID" = "VEHICLE"."ID" WHERE "ORG_ID" = $1 AND "VEHICLE"."ID" = $2 AND "DELETED" = $3',
-      [orgId, vehicleId, false]
-    );
-    if (vehicle.rowCount === 0) {
-      return res.status(200).json({
-        message: 'This profile does not contain any vehicles',
-        vehicles: []
-      });
-    }
-    const tripsCheck = await pool.query(
-      'SELECT * FROM "TRIPS" WHERE "VEHICLE_ID" = $1',
-      [vehicleId]
-    );
-    if (tripsCheck.rowCount !== 0) {
-      return res.status(200).json({
-        message: 'This trip already exists',
-        vehicles: []
-      });
-    }
-
-    await pool.query(
-      'INSERT INTO "TRIPS" ("FROM_LOCATION", "TO_LOCATION", "CAPACITY", "DRIVER_ID", "ORG_ID", "VEHICLE_ID", "FROM_DATE", "TO_DATE" , "PRICE") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [
-        fromLocation,
-        toLocation,
-        availableCapacity,
-        userId,
-        orgId,
-        vehicleId,
-        fromDate,
-        toDate,
-        price
-      ]
-    );
-    const IS_AVAILABLE = true;
-    const vehicleResponse = await pool.query(
-      'UPDATE "VEHICLE" SET "IS_AVAILABLE" = $1 WHERE "ID" = $2  RETURNING *',
-      [IS_AVAILABLE, vehicleId]
-    );
-    res.json({
-      vehicleDetails: vehicleResponse.rows[0],
-      message: 'You have successfully added availability to the vehicle'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

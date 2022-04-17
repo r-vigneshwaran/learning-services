@@ -11,7 +11,8 @@ const {
   refreshToken,
   logout,
   isAuthenticated,
-  verifyEmail
+  verifyEmail,
+  deleteUser
 } = require('./controller/jwtAuth');
 const validator = require('./middleware/validator');
 const authorization = require('./middleware/authorization');
@@ -20,20 +21,27 @@ var router = require('express').Router();
 var bodyParser = require('body-parser');
 const { home } = require('./controller/dashboard');
 const {
-  createProfile,
   addVehicle,
   getProfileVehicles,
   deleteVehicle,
   completeRegistration,
-  addVehicleAvailability,
-  editVehicle
+  editVehicle,
+  editProfile,
+  createDriverProfile
 } = require('./controller/driverController');
 const {
   getTripDetails,
   editTripDetails,
-  getSpecificTripDetails
+  getSpecificTripDetails,
+  addVehicleAvailability,
+  removeVehicleAvailability
 } = require('./controller/tripsController');
 const { getUserProfileDetails } = require('./controller/userController');
+const {
+  createCustomerProfile,
+  editCustomerProfile,
+  bookTrip
+} = require('./controller/customerController');
 
 router.use(bodyParser.urlencoded({ extended: false }));
 // router.get('/', ping);
@@ -51,10 +59,11 @@ router.get('/auth/logout', logout);
 
 // verification
 router.post('/user/verify', verifyEmail);
+router.post('/user/delete-user/:id', deleteUser);
 
 // dashboard routes
 router.get('/dashboard', home);
-router.get('/api/get-trip-details/:id', getSpecificTripDetails);
+router.post('/api/get-trip-details', getSpecificTripDetails);
 
 // user route
 router.get(
@@ -63,12 +72,14 @@ router.get(
   getUserProfileDetails
 );
 router.post('/api/driver/add-availability', addVehicleAvailability);
+router.put('/api/driver/remove-availability/:id', removeVehicleAvailability);
 router.get('/api/driver/get-trip-details/:id', getTripDetails);
 
 router.put('/api/driver/edit-trip-details/:id', editTripDetails);
 
 // drivers route
-router.post('/api/driver/create-profile', authorization, createProfile);
+router.post('/api/driver/create-profile', authorization, createDriverProfile);
+router.put('/api/driver/edit-profile/:id', authorization, editProfile);
 router.post('/api/driver/add-vehicle', addVehicle);
 router.post('/api/driver/edit-vehicle', editVehicle);
 router.post('/api/driver/get-vehicles', authorization, getProfileVehicles);
@@ -77,6 +88,19 @@ router.put(
   '/api/driver/complete-registration/:id',
   authorization,
   completeRegistration
+);
+
+// customer route
+router.post(
+  '/api/customer/create-profile',
+  authorization,
+  createCustomerProfile
+);
+router.post('/api/customer/book-this-ride', authorization, bookTrip);
+router.put(
+  '/api/customer/edit-profile/:id',
+  authorization,
+  editCustomerProfile
 );
 
 module.exports = router;
