@@ -10,9 +10,13 @@ const {
   updateRefreshToken,
   findUser,
   findUserWithRefreshToken,
-  findUserWithId
+  findUserWithId,
+  checkIfUserExists,
+  checkIfUserRevokedOrDeleted
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
+const { EMAIL_REGEX, MOBILE_REGEX } = require('../constants/generalConstants');
+const { sendMobileOtp } = require('./SmsController');
 
 // // registering
 exports.register = async (req, res) => {
@@ -70,8 +74,16 @@ exports.register = async (req, res) => {
       secure: true
     });
     const id = userData.ID;
+    let message;
+    const emailResult = EMAIL_REGEX.test(email);
+    const mobileResult = MOBILE_REGEX.test(email);
 
-    const message = sendVerificationcode({ id, email });
+    if (emailResult) {
+      message = sendVerificationcode({ id, email });
+    }
+    if (mobileResult) {
+      message = sendMobileOtp({ id, email });
+    }
 
     res.status(201).json({
       otpStatus: message,
@@ -102,6 +114,13 @@ exports.login = async (req, res) => {
         .status(401)
         .json({ message: 'Password or Email is incorrect' });
     }
+
+    const expired = await checkIfUserRevokedOrDeleted(user.rows[0].ID);
+    if (expired)
+      return res.status(400).json({
+        message:
+          'Your Account has been revoked or deleted by the owner, please contact the owner to unblock'
+      });
 
     //  3. check if incoming password is same as the db password
     const validPassword = await bcrypt.compare(password, user.rows[0].PASSWORD);
@@ -188,7 +207,7 @@ exports.refreshToken = async (req, res) => {
       async (error, payload) => {
         if (error || payload.user !== foundUser.rows[0].EMAIL)
           return res.sendStatus(403);
-
+        
         const newToken = jwtAccessGenerator(payload.user);
 
         const userData = deleteSensitive(foundUser);
@@ -286,7 +305,7 @@ exports.deleteUser = async (req, res) => {
   if (!id) return res.status(404).json({ message: 'Missing parameter' });
 
   try {
-    const user = await findUserWithId(id);
+    const user = await checkIfUserExists(id);
 
     if (user.rowCount === 0)
       return res.status(401).json({ message: 'User not found' });

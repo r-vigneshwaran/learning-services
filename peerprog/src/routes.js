@@ -2,7 +2,8 @@ const {
   ping,
   sendSms,
   recieveSms,
-  getUsers
+  sendMobileOtp,
+  sendMessage
 } = require('./controller/SmsController');
 const {
   register,
@@ -19,7 +20,12 @@ const authorization = require('./middleware/authorization');
 
 var router = require('express').Router();
 var bodyParser = require('body-parser');
-const { home } = require('./controller/dashboard');
+const {
+  home,
+  largeVehicles,
+  smallVehicles,
+  testing
+} = require('./controller/dashboard');
 const {
   addVehicle,
   getProfileVehicles,
@@ -36,18 +42,26 @@ const {
   addVehicleAvailability,
   removeVehicleAvailability
 } = require('./controller/tripsController');
-const { getUserProfileDetails } = require('./controller/userController');
+const {
+  getUserProfileDetails,
+  contactUs
+} = require('./controller/userController');
 const {
   createCustomerProfile,
   editCustomerProfile,
-  bookTrip
+  bookTrip,
+  customerBookingHistory
 } = require('./controller/customerController');
+const { getUsers } = require('./controller/adminController');
+const { isRevoked } = require('./middleware/isRevoked');
 
 router.use(bodyParser.urlencoded({ extended: false }));
 // router.get('/', ping);
+
 router.post('/sendsms', sendSms);
 router.post('/recievesms', recieveSms);
-router.get('/getusers', getUsers);
+router.post('/api/sent-otp', sendMobileOtp);
+router.post('/api/sent-message', sendMessage);
 
 // Authentication and Authorizations Routes
 router.post('/auth/register', validator, register);
@@ -63,6 +77,9 @@ router.post('/user/delete-user/:id', deleteUser);
 
 // dashboard routes
 router.get('/dashboard', home);
+router.get('/testing', testing);
+router.get('/api/home/large-vehicles', largeVehicles);
+router.get('/api/home/small-vehicles', smallVehicles);
 router.post('/api/get-trip-details', getSpecificTripDetails);
 
 // user route
@@ -71,7 +88,7 @@ router.get(
   authorization,
   getUserProfileDetails
 );
-router.post('/api/driver/add-availability', addVehicleAvailability);
+router.post('/api/driver/add-availability', isRevoked, addVehicleAvailability);
 router.put('/api/driver/remove-availability/:id', removeVehicleAvailability);
 router.get('/api/driver/get-trip-details/:id', getTripDetails);
 
@@ -83,7 +100,11 @@ router.put('/api/driver/edit-profile/:id', authorization, editProfile);
 router.post('/api/driver/add-vehicle', addVehicle);
 router.post('/api/driver/edit-vehicle', editVehicle);
 router.post('/api/driver/get-vehicles', authorization, getProfileVehicles);
-router.delete('/api/driver/delete-vehicle/:vehicleId/:orgId', deleteVehicle);
+router.delete(
+  '/api/driver/delete-vehicle/:vehicleId/:orgId',
+  isRevoked,
+  deleteVehicle
+);
 router.put(
   '/api/driver/complete-registration/:id',
   authorization,
@@ -96,11 +117,9 @@ router.post(
   authorization,
   createCustomerProfile
 );
-router.post('/api/customer/book-this-ride', authorization, bookTrip);
-router.put(
-  '/api/customer/edit-profile/:id',
-  authorization,
-  editCustomerProfile
-);
+router.post('/api/customer/book-this-ride', isRevoked, bookTrip);
+router.put('/api/customer/edit-profile/:id', isRevoked, editCustomerProfile);
+router.get('/api/customer/get-booking-log/:id', customerBookingHistory);
+router.post('/api/user/contact-us', contactUs);
 
 module.exports = router;

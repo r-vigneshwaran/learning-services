@@ -219,3 +219,47 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public."VEHICLE_IMAGES"
     OWNER to postgres;
+
+-- Table: public.USER_IMAGES
+
+-- DROP TABLE IF EXISTS public."USER_IMAGES";
+
+CREATE TABLE IF NOT EXISTS public."USER_IMAGES"
+(
+    "ID" SERIAL,
+    "USER_ID" integer NOT NULL,
+    "IMAGE" text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "USR_IMG_pkey" PRIMARY KEY ("ID"),
+    CONSTRAINT "USR_IMG_FK" FOREIGN KEY ("USER_ID")
+        REFERENCES public."USER" ("ID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."USER_IMAGES"
+    OWNER to postgres;
+    
+-- Table: public.MESSAGES
+
+-- DROP TABLE IF EXISTS public."MESSAGES";
+
+CREATE TABLE IF NOT EXISTS public."MESSAGES"
+(
+    "ID" integer NOT NULL DEFAULT nextval('"MESSAGES_ID_seq"'::regclass),
+    "USER_ID" text COLLATE pg_catalog."default" NOT NULL,
+    "IS_SINGLE_USER" boolean,
+    "IS_READ" boolean,
+    "IS_BROADCAST" boolean,
+    "IS_CATEGORY" boolean,
+    "IS_GROUP" boolean,
+    "MESSAGE" text COLLATE pg_catalog."default" NOT NULL,
+    "CREATED_AT" text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "MSG_pkey" PRIMARY KEY ("ID")
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."MESSAGES"
+    OWNER to postgres;

@@ -1,6 +1,12 @@
 const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
 const { pool } = require('../dao');
-const { findUserWithId, findVehicleWithId } = require('../utils/helper');
+const {
+  findUserWithId,
+  findVehicleWithId,
+  checkIfAadharExists,
+  checkIfLicenceExists,
+  checkIfUserExists
+} = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
 exports.createDriverProfile = async (req, res) => {
@@ -10,7 +16,6 @@ exports.createDriverProfile = async (req, res) => {
       name,
       isActive = false,
       orgName,
-      mobile,
       city,
       code,
       currentStep,
@@ -19,14 +24,12 @@ exports.createDriverProfile = async (req, res) => {
       licenceValidity,
       aadharNumber,
       userImage,
-      ownerShip,
-      email
+      ownerShip
     } = req.body;
     if (
       !name ||
       !id ||
       !orgName ||
-      !mobile ||
       !city ||
       !code ||
       !currentStep ||
@@ -54,11 +57,24 @@ exports.createDriverProfile = async (req, res) => {
       [orgName, isActive, code]
     );
     const nextStep = currentStep + 1;
-    const personalEmail = email ? email : null;
+
+    const isUniqueAadhar = await checkIfAadharExists(aadharNumber);
+
+    if (isUniqueAadhar.rowCount !== 0)
+      return res
+        .status(400)
+        .json({ message: 'Someone has already taken this Aadhar number' });
+
+    const isUniqueLicence = await checkIfLicenceExists(licenceNumber);
+
+    if (isUniqueLicence.rowCount !== 0)
+      return res
+        .status(400)
+        .json({ message: 'Someone has already taken this License number' });
+
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "MOBILE" = $1, "ORG_ID" = $2, "ROLE" = $3, "ROLE_CODE" = $4, "CURRENT_STEP" = $5, "DRIVER_LICENCE_NO" = $6, "YEAR_OF_EXPERIENCE" = $7, "DRIVER_LICENCE_VALIDITY" = $8, "AADHAR_NUMBER" = $9, "USER_IMAGE" = $10, "OWNERSHIP" = $11, "CITY" = $12, "PERSONAL_EMAIL" = $13, "NAME" = $14 WHERE "ID"= $15 RETURNING *',
+      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11 WHERE "ID"= $12 RETURNING *',
       [
-        mobile,
         newOrg.rows[0].ID,
         ROLE_NAME.DRIVER,
         ROLE_CODE.DRIVER,
@@ -67,17 +83,27 @@ exports.createDriverProfile = async (req, res) => {
         yearOfExperience,
         licenceValidity,
         aadharNumber,
-        userImage,
         ownerShip,
         city,
-        personalEmail,
         name,
         id
       ]
     );
+    const newUserId = newUser.rows[0].ID;
+
+    const newUserImg = await pool.query(
+      'INSERT INTO "USER_IMAGES" ("IMAGE", "USER_ID") VALUES($1, $2) RETURNING *',
+      [userImage, newUserId]
+    );
+
     const userData = deleteSensitive(newUser);
 
-    res.json({ userInfo: userData });
+    const newUserData = {
+      ...userData.rows[0],
+      USER_IMAGE: newUserImg.rows[0].IMAGE
+    };
+
+    res.json({ userInfo: newUserData });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
@@ -89,7 +115,6 @@ exports.editProfile = async (req, res) => {
     const {
       name,
       orgName,
-      mobile,
       licenceNumber,
       yearOfExperience,
       licenceValidity,
@@ -102,7 +127,6 @@ exports.editProfile = async (req, res) => {
       !name ||
       !id ||
       !orgName ||
-      !mobile ||
       !licenceNumber ||
       !yearOfExperience ||
       !licenceValidity ||
@@ -113,7 +137,7 @@ exports.editProfile = async (req, res) => {
     )
       return res.status(400).json({ message: 'insufficent data' });
 
-    const user = await findUserWithId(id);
+    const user = await checkIfUserExists(id);
     if (user.rowCount === 0)
       return res.status(401).json({ message: 'User not found' });
 
@@ -129,17 +153,16 @@ exports.editProfile = async (req, res) => {
       'UPDATE "ORGANIZATION" SET "NAME" = $1, "CODE" = $2 WHERE "ID" = $3 RETURNING *',
       [orgName, code, orgId]
     );
-    console.log(updatedOrg.rows[0], 'updatedOrg');
+
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "MOBILE" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6, "NAME" = $7  WHERE "ID"= $8 RETURNING *',
+      'UPDATE "USERS" SET "NAME" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6  WHERE "ID"= $7 RETURNING *',
       [
-        mobile,
+        name,
         licenceNumber,
         yearOfExperience,
         licenceValidity,
         aadharNumber,
         ownerShip,
-        name,
         id
       ]
     );
@@ -274,7 +297,7 @@ exports.editVehicle = async (req, res) => {
     return res.status(404).json({ message: 'insufficient data' });
   try {
     const org = await pool.query(
-      'SELECT * FROM "ORGANIZATION" WHERE "ID" = $1',
+      'SELECT "ID" FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
     );
     if (org.rowCount === 0) {
@@ -283,7 +306,7 @@ exports.editVehicle = async (req, res) => {
         .json({ message: 'No Organization found with this details' });
     }
     const uniqueVehicle = await pool.query(
-      'SELECT * FROM "VEHICLE" WHERE "ID" = $1',
+      'SELECT "ID" FROM "VEHICLE" WHERE "ID" = $1',
       [vId]
     );
     if (uniqueVehicle.rowCount === 0) {
@@ -340,7 +363,10 @@ exports.getProfileVehicles = async (req, res) => {
     if (organization.rowCount === 0) {
       return res.status(404).json({ message: 'organization not found' });
     }
-    const vehicle = await findVehicleWithId(orgId);
+    const vehicle = await pool.query(
+      'SELECT * FROM "VEHICLE" LEFT JOIN "VEHICLE_IMAGES" ON "VEHICLE_IMAGES"."VEHICLE_ID" = "VEHICLE"."ID" WHERE "ORG_ID" = $1 AND "DELETED" = $2',
+      [orgId, false]
+    );
     if (vehicle.rowCount === 0) {
       return res.status(200).json({
         message: 'This profile does not contain any vehicles',
@@ -371,10 +397,10 @@ exports.deleteVehicle = async (req, res) => {
         vehicles: []
       });
     }
-    await pool.query(
-      `DELETE FROM "VEHICLE_IMAGES" WHERE "VEHICLE_ID" = ( SELECT "ID" from "VEHICLE" where "ID" = $1)`,
-      [vehicleId]
-    );
+    // await pool.query(
+    //   `DELETE FROM "VEHICLE_IMAGES" WHERE "VEHICLE_ID" = ( SELECT "ID" from "VEHICLE" where "ID" = $1)`,
+    //   [vehicleId]
+    // );
     await pool.query('UPDATE "VEHICLE" SET "DELETED" = $1 WHERE "ID" = $2', [
       true,
       vehicleId

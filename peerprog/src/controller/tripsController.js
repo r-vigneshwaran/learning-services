@@ -11,7 +11,6 @@ exports.addVehicleAvailability = async (req, res) => {
     userId,
     vehicleId,
     orgId,
-    availableCapacity,
     price
   } = req.body;
   if (
@@ -22,7 +21,6 @@ exports.addVehicleAvailability = async (req, res) => {
     !userId ||
     !vehicleId ||
     !orgId ||
-    !availableCapacity ||
     !price
   )
     return res.status(404).json({ message: 'insufficient data' });
@@ -57,8 +55,8 @@ exports.addVehicleAvailability = async (req, res) => {
       });
     }
     const tripsCheck = await pool.query(
-      'SELECT * FROM "TRIPS" WHERE "VEHICLE_ID" = $1',
-      [vehicleId]
+      'SELECT * FROM "TRIPS" WHERE "VEHICLE_ID" = $1 AND "TRIPS"."DELETED" = $2',
+      [vehicleId, false]
     );
     if (tripsCheck.rowCount !== 0) {
       return res.status(200).json({
@@ -68,17 +66,17 @@ exports.addVehicleAvailability = async (req, res) => {
     }
 
     await pool.query(
-      'INSERT INTO "TRIPS" ("FROM_LOCATION", "TO_LOCATION", "CAPACITY", "DRIVER_ID", "ORG_ID", "VEHICLE_ID", "FROM_DATE", "TO_DATE" , "PRICE") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      'INSERT INTO "TRIPS" ("FROM_LOCATION", "TO_LOCATION", "DRIVER_ID", "ORG_ID", "VEHICLE_ID", "FROM_DATE", "TO_DATE" , "PRICE", "STATUS") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
       [
         fromLocation,
         toLocation,
-        availableCapacity,
         userId,
         orgId,
         vehicleId,
         fromDate,
         toDate,
-        price
+        price,
+        true
       ]
     );
     const IS_AVAILABLE = true;
@@ -113,8 +111,8 @@ exports.removeVehicleAvailability = async (req, res) => {
       });
     }
     const tripsCheck = await pool.query(
-      'SELECT * FROM "TRIPS" WHERE "ID" = $1',
-      [id]
+      'SELECT * FROM "TRIPS" WHERE "ID" = $1 AND "TRIPS"."DELETED" = $2',
+      [id, false]
     );
     if (tripsCheck.rowCount === 0) {
       return res.status(200).json({
@@ -132,7 +130,12 @@ exports.removeVehicleAvailability = async (req, res) => {
         .status(403)
         .json({ message: 'This trip is not created with this vehicle' });
 
-    await pool.query('DELETE FROM "TRIPS" WHERE "ID" = $1 ', [id]);
+    // await pool.query('DELETE FROM "TRIPS" WHERE "ID" = $1 ', [id]);
+
+    await pool.query('UPDATE "TRIPS" SET "DELETED" = $1 WHERE "ID" = $2 ', [
+      true,
+      id
+    ]);
 
     const IS_AVAILABLE = false;
     const vehicleResponse = await pool.query(
@@ -154,8 +157,8 @@ exports.getTripDetails = async (req, res) => {
 
   try {
     const trips = await pool.query(
-      'SELECT * FROM "TRIPS" WHERE "VEHICLE_ID" = $1 ',
-      [id]
+      'SELECT * FROM "TRIPS" WHERE "VEHICLE_ID" = $1 AND "TRIPS"."DELETED" = $2 ',
+      [id, false]
     );
     res.status(200).json({ trip: trips.rows[0] });
   } catch (error) {
@@ -164,7 +167,6 @@ exports.getTripDetails = async (req, res) => {
 };
 
 exports.editTripDetails = async (req, res) => {
-  const { id } = req.params;
   const {
     fromDate,
     toDate,
@@ -173,7 +175,6 @@ exports.editTripDetails = async (req, res) => {
     userId,
     vehicleId,
     orgId,
-    availableCapacity,
     price
   } = req.body;
   if (
@@ -184,34 +185,31 @@ exports.editTripDetails = async (req, res) => {
     !userId ||
     !vehicleId ||
     !orgId ||
-    !availableCapacity ||
-    !price ||
-    !id
+    !price
   )
     return res.status(404).json({ message: 'insufficient data' });
 
   try {
     const tripExist = await pool.query(
-      'SELECT "ID" FROM "TRIPS" WHERE "VEHICLE_ID" = $1',
-      [id]
+      'SELECT "ID" FROM "TRIPS" WHERE "VEHICLE_ID" = $1 AND "TRIPS"."DELETED" = $2',
+      [vehicleId, false]
     );
     if (tripExist.rowCount === 0) {
-      return res.status(404).json({ message: 'Trip Doest not exist' });
+      return res.status(404).json({ message: 'Trip Does not exist' });
     }
 
     const trips = await pool.query(
-      'UPDATE "TRIPS" SET "FROM_LOCATION" = $1, "TO_LOCATION" = $2, "CAPACITY" = $3, "DRIVER_ID" = $4, "ORG_ID" = $5, "VEHICLE_ID" = $6, "FROM_DATE" = $7, "TO_DATE" = $8 , "PRICE" = $9 WHERE "VEHICLE_ID" = $10',
+      'UPDATE "TRIPS" SET "FROM_LOCATION" = $1, "TO_LOCATION" = $2, "DRIVER_ID" = $3, "ORG_ID" = $4, "VEHICLE_ID" = $5, "FROM_DATE" = $6, "TO_DATE" = $7 , "PRICE" = $8 WHERE "VEHICLE_ID" = $9',
       [
         fromLocation,
         toLocation,
-        availableCapacity,
         userId,
         orgId,
         vehicleId,
         fromDate,
         toDate,
         price,
-        id
+        vehicleId
       ]
     );
     res.status(200).json({ trip: trips.rows[0] });
@@ -237,8 +235,8 @@ exports.getSpecificTripDetails = async (req, res) => {
       FROM "TRIPS" "T" LEFT JOIN "USERS" "U" ON "T"."DRIVER_ID" = "U"."ID"
       LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID" AND "V"."DELETED" = false 
       LEFT JOIN "BOOKING" "B" ON "T"."ID" = "B"."TRIP_ID" AND "B"."CUSTOMER_ID" = $1
-      LEFT JOIN "VEHICLE_IMAGES" "VI" ON "V"."ID" = "VI"."VEHICLE_ID" WHERE "T"."VEHICLE_ID" = $2`,
-      [userId, vehicleId]
+      LEFT JOIN "VEHICLE_IMAGES" "VI" ON "V"."ID" = "VI"."VEHICLE_ID" WHERE "T"."VEHICLE_ID" = $2 AND "T"."DELETED" = $3`,
+      [userId, vehicleId, false]
     );
 
     if (trips.rowCount === 0)
