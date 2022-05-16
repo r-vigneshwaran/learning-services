@@ -225,6 +225,46 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS public."VEHICLE_IMAGES"
     OWNER to postgres;
+
+
+-- Table: public.USER_IMAGES
+
+-- DROP TABLE IF EXISTS public."USER_IMAGES";
+
+CREATE TABLE IF NOT EXISTS public."USER_IMAGES"
+(
+    "ID" SERIAL,
+    "USER_ID" integer NOT NULL,
+    "IMAGE" text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "USR_IMG_pkey" PRIMARY KEY ("ID"),
+    CONSTRAINT "USR_IMG_FK" FOREIGN KEY ("USER_ID")
+        REFERENCES public."USER" ("ID") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."USER_IMAGES"
+    OWNER to postgres;
+
+-- Table: public.QUERIES
+
+-- DROP TABLE IF EXISTS public."QUERIES";
+
+CREATE TABLE IF NOT EXISTS public."QUERIES"
+(
+    "ID" SERIAL,
+    "NAME" text text COLLATE pg_catalog."default" NOT NULL,
+    "EMAIL" text COLLATE pg_catalog."default" NOT NULL,
+    "MESSAGE" text COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT "QUERIES_pkey" PRIMARY KEY ("ID")
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."USER_IMAGES"
+    OWNER to postgres;
 	
 
 

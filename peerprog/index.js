@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const routes = require('./src/routes');
+const adminRoutes = require('./src/adminRoutes');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const credentials = require('./src/config/credentials');
@@ -28,6 +29,8 @@ app.use(credentials);
 app.use(cors(corsOptions));
 // app.use(cors());
 app.use('/', routes);
+app.use('/api/admin', adminRoutes);
+
 var port = process.env.PORT || 8000;
 
 app.listen(port, function () {
