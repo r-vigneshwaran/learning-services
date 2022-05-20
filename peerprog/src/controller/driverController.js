@@ -99,7 +99,7 @@ exports.createDriverProfile = async (req, res) => {
     const userData = deleteSensitive(newUser);
 
     const newUserData = {
-      ...userData.rows[0],
+      ...userData,
       USER_IMAGE: newUserImg.rows[0].IMAGE
     };
 
@@ -111,15 +111,16 @@ exports.createDriverProfile = async (req, res) => {
 };
 exports.editProfile = async (req, res) => {
   try {
-    const { id } = req.params;
     const {
       name,
+      id,
       orgName,
       licenceNumber,
       yearOfExperience,
       licenceValidity,
       aadharNumber,
       ownerShip,
+      userImage,
       orgId,
       code
     } = req.body;
@@ -132,10 +133,11 @@ exports.editProfile = async (req, res) => {
       !licenceValidity ||
       !aadharNumber ||
       !ownerShip ||
+      !userImage ||
       !code ||
       !orgId
     )
-      return res.status(400).json({ message: 'insufficent data' });
+      return res.status(400).json({ message: 'Insufficent data' });
 
     const user = await checkIfUserExists(id);
     if (user.rowCount === 0)
@@ -166,9 +168,20 @@ exports.editProfile = async (req, res) => {
         id
       ]
     );
-    const userData = deleteSensitive(newUser);
+    const newUserId = newUser.rows[0].ID;
 
-    res.json({ profile: userData, organization: updatedOrg.rows[0] });
+    const newUserImg = await pool.query(
+      'UPDATE "USER_IMAGES" SET "IMAGE" = $1, "USER_ID" = $2 RETURNING *',
+      [userImage, newUserId]
+    );
+
+    const userData = deleteSensitive(newUser);
+    const newUserData = {
+      ...userData,
+      USER_IMAGE: newUserImg.rows[0].IMAGE
+    };
+
+    res.json({ profile: userData, organization: newUserData });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });

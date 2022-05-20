@@ -1,11 +1,6 @@
 const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
 const { pool } = require('../dao');
-const {
-  findUserWithId,
-  findVehicleWithId,
-  checkIfAadharExists,
-  checkIfUserExists
-} = require('../utils/helper');
+const { checkIfAadharExists } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
 exports.createCustomerProfile = async (req, res) => {
