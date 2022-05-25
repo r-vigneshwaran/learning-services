@@ -82,7 +82,7 @@ exports.register = async (req, res) => {
       message = sendVerificationcode({ id, email });
     }
     if (mobileResult) {
-      message = sendMobileOtp({ id, email });
+      message = sendMobileOtp({ id, mobile: email });
     }
 
     res.status(201).json({
@@ -207,7 +207,7 @@ exports.refreshToken = async (req, res) => {
       async (error, payload) => {
         if (error || payload.user !== foundUser.rows[0].EMAIL)
           return res.sendStatus(403);
-        
+
         const newToken = jwtAccessGenerator(payload.user);
 
         const userData = deleteSensitive(foundUser);
@@ -285,13 +285,13 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'The OTP provided is incorrect' });
 
     const nextStep = currentStep + 1;
-
+    const verified = true;
     const newUser = await pool.query(
       'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "VERIFIED" = $3, "CURRENT_STEP" = $4 WHERE "ID" = $5 RETURNING *',
-      [null, null, true, nextStep, id]
+      [null, null, verified, nextStep, id]
     );
     res.status(200).json({
-      verified: true,
+      verified: verified,
       userInfo: newUser.rows[0],
       message: 'Verification completed successfully'
     });

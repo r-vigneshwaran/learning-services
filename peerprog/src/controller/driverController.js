@@ -5,7 +5,9 @@ const {
   findVehicleWithId,
   checkIfAadharExists,
   checkIfLicenceExists,
-  checkIfUserExists
+  checkIfUserExists,
+  checkIfOthersVerified,
+  resetOthersVerified
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
@@ -42,6 +44,8 @@ exports.createDriverProfile = async (req, res) => {
     )
       return res.status(400).json({ message: 'insufficent data' });
 
+    await checkIfOthersVerified(id);
+
     const organization = await pool.query(
       'SELECT * FROM "ORGANIZATION" WHERE "CODE" = $1',
       [code]
@@ -73,7 +77,7 @@ exports.createDriverProfile = async (req, res) => {
         .json({ message: 'Someone has already taken this License number' });
 
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11 WHERE "ID"= $12 RETURNING *',
+      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11, "OTHERS_VERIFIED" = $12 WHERE "ID"= $13 RETURNING *',
       [
         newOrg.rows[0].ID,
         ROLE_NAME.DRIVER,
@@ -86,6 +90,7 @@ exports.createDriverProfile = async (req, res) => {
         ownerShip,
         city,
         name,
+        false,
         id
       ]
     );
@@ -112,30 +117,32 @@ exports.createDriverProfile = async (req, res) => {
 exports.editProfile = async (req, res) => {
   try {
     const {
-      name,
-      id,
-      orgName,
-      licenceNumber,
-      yearOfExperience,
-      licenceValidity,
       aadharNumber,
+      code,
+      id,
+      licenceNumber,
+      licenceValidity,
+      emailOrMobile,
+      name,
+      orgId,
+      orgName,
       ownerShip,
       userImage,
-      orgId,
-      code
+      yearOfExperience
     } = req.body;
     if (
-      !name ||
-      !id ||
-      !orgName ||
-      !licenceNumber ||
-      !yearOfExperience ||
-      !licenceValidity ||
       !aadharNumber ||
+      !code ||
+      !id ||
+      !licenceNumber ||
+      !licenceValidity ||
+      !emailOrMobile ||
+      !name ||
+      !orgId ||
+      !orgName ||
       !ownerShip ||
       !userImage ||
-      !code ||
-      !orgId
+      !yearOfExperience
     )
       return res.status(400).json({ message: 'Insufficent data' });
 
@@ -143,6 +150,7 @@ exports.editProfile = async (req, res) => {
     if (user.rowCount === 0)
       return res.status(401).json({ message: 'User not found' });
 
+    await checkIfOthersVerified(id);
     const organization = await pool.query(
       'SELECT * FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
@@ -157,7 +165,7 @@ exports.editProfile = async (req, res) => {
     );
 
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "NAME" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6  WHERE "ID"= $7 RETURNING *',
+      'UPDATE "USERS" SET "NAME" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6, "OTHERS_VERIFIED" = $7, "EMAIL" = $8  WHERE "ID"= $9 RETURNING *',
       [
         name,
         licenceNumber,
@@ -165,6 +173,8 @@ exports.editProfile = async (req, res) => {
         licenceValidity,
         aadharNumber,
         ownerShip,
+        false,
+        emailOrMobile,
         id
       ]
     );
@@ -181,7 +191,7 @@ exports.editProfile = async (req, res) => {
       USER_IMAGE: newUserImg.rows[0].IMAGE
     };
 
-    res.json({ profile: userData, organization: newUserData });
+    res.json({ profile: newUserData, organization: updatedOrg.rows[0] });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });
@@ -201,7 +211,8 @@ exports.addVehicle = async (req, res) => {
     ownerShip,
     ownerName,
     city,
-    vehicleImage
+    vehicleImage,
+    userId
   } = req.body;
 
   if (
@@ -216,10 +227,12 @@ exports.addVehicle = async (req, res) => {
     !ownerShip ||
     !ownerName ||
     !city ||
-    !vehicleImage
+    !vehicleImage ||
+    !userId
   )
     return res.status(404).json({ message: 'insufficient data' });
   try {
+    await checkIfOthersVerified(userId);
     const org = await pool.query(
       'SELECT * FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
@@ -266,6 +279,9 @@ exports.addVehicle = async (req, res) => {
       ...vehicleDetails.rows[0],
       VEHICLE_IMAGE: vehicleImageTable.rows[0].IMAGE
     };
+
+    await resetOthersVerified(userId);
+
     res.status(200).json({
       message: 'Vehicle Added to profile successfully',
       vehicle: vehicleData
@@ -289,7 +305,8 @@ exports.editVehicle = async (req, res) => {
     ownerName,
     city,
     vehicleImage,
-    vId
+    vId,
+    userId
   } = req.body;
 
   if (
@@ -305,10 +322,12 @@ exports.editVehicle = async (req, res) => {
     !ownerName ||
     !city ||
     !vehicleImage ||
-    !vId
+    !vId ||
+    !userId
   )
     return res.status(404).json({ message: 'insufficient data' });
   try {
+    await checkIfOthersVerified(userId);
     const org = await pool.query(
       'SELECT "ID" FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
@@ -352,6 +371,9 @@ exports.editVehicle = async (req, res) => {
       'UPDATE "VEHICLE_IMAGES" SET "IMAGE" = $1 WHERE "VEHICLE_ID" = $2 RETURNING *',
       [vehicleImage, vehicleId]
     );
+
+    await resetOthersVerified(userId);
+
     const vehicleData = {
       ...vehicleDetails.rows[0],
       VEHICLE_IMAGE: vehicleImageTable.rows[0].IMAGE
@@ -434,15 +456,15 @@ exports.completeRegistration = async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    const isVerified = user.rows[0].VERIFIED;
-    const isRegistered = user.rows[0].IS_REGISTERED;
-    if (!isVerified)
-      return res.status(403).json({ message: 'verify your account' });
+    // const isVerified = user.rows[0].VERIFIED;
+    // const isRegistered = user.rows[0].IS_REGISTERED;
+    // if (!isVerified)
+    //   return res.status(403).json({ message: 'verify your account' });
 
-    if (isRegistered)
-      return res
-        .status(409)
-        .json({ message: 'Account has been already registered' });
+    // if (isRegistered)
+    //   return res
+    //     .status(409)
+    //     .json({ message: 'Account has been already registered' });
 
     const response = await pool.query(
       'UPDATE "USERS" SET "IS_REGISTERED" = $1 WHERE "ID" = $2 RETURNING *',

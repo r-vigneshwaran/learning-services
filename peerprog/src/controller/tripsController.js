@@ -59,10 +59,18 @@ exports.addVehicleAvailability = async (req, res) => {
       [vehicleId, false]
     );
     if (tripsCheck.rowCount !== 0) {
-      return res.status(200).json({
-        message: 'This trip already exists',
-        vehicles: []
-      });
+      for (let i = 0; i < tripsCheck.rows.length; i++) {
+        const expiresAt = new Date(tripsCheck.rows[i].TO_DATE);
+        const today = new Date();
+        expiresAt.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        if (expiresAt >= today) {
+          return res.status(400).json({
+            message: 'This trip already exists',
+            vehicles: []
+          });
+        }
+      }
     }
 
     await pool.query(

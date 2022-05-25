@@ -1,3 +1,4 @@
+const { EMAIL_REGEX, MOBILE_REGEX } = require('../constants/generalConstants');
 const { pool } = require('../dao');
 
 const updateRefreshToken = async (token, userId) => {
@@ -87,6 +88,41 @@ const checkIfLicenceExists = async (licenceNumber) => {
     [licenceNumber]
   );
 };
+const checkIfEmail = (emailOrMobile) => {
+  const emailResult = EMAIL_REGEX.test(emailOrMobile);
+  return emailResult;
+};
+const checkIfMobile = (emailOrMobile) => {
+  const mobileResult = MOBILE_REGEX.test(emailOrMobile);
+  return mobileResult;
+};
+const checkIfOthersVerified = async (id) => {
+  const isVerified = await pool.query(
+    `SELECT "OTHERS_VERIFIED" FROM "USERS" WHERE "ID" = $1`,
+    [id]
+  );
+  if (!isVerified.rows[0]) {
+    return res
+      .status(400)
+      .json({ message: `Please Verify to proceed further` });
+  }
+};
+const resetOthersVerified = async (id) => {
+  return await pool.query(
+    `UPDATE "USERS" SET "OTHERS_VERIFIED" = $1 WHERE "ID" = $2`,
+    [false, id]
+  );
+};
+const filterExpired = (rows) => {
+  const today = new Date();
+  const filtered = rows.filter((item) => {
+    const expiresAt = new Date(item.TO_DATE);
+    expiresAt.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return expiresAt >= today;
+  });
+  return filtered;
+};
 
 module.exports = {
   updateRefreshToken,
@@ -100,5 +136,10 @@ module.exports = {
   checkIfUserExists,
   checkIfUserRevokedOrDeleted,
   checkIfUserRevokedOrDeletedWithEmail,
-  checkIfUserRevoked
+  checkIfUserRevoked,
+  checkIfEmail,
+  checkIfMobile,
+  checkIfOthersVerified,
+  resetOthersVerified,
+  filterExpired
 };
