@@ -16,12 +16,12 @@ transporter.verify((error, success) => {
   if (error) {
     console.log('error', error);
   } else {
-    // console.log('Ready to Mail');
-    // console.log(success);
+    console.log('Ready to Mail');
+    console.log(success);
   }
 });
 
-async function sendVerificationcode({ id, email }, res) {
+async function sendVerificationcode({ id, email }) {
   try {
     const uniqueString = otpGenerator.generate(5, {
       upperCaseAlphabets: false,
@@ -53,10 +53,10 @@ async function sendVerificationcode({ id, email }, res) {
         return 'Verification Mail send successfully';
       })
       .catch((err) => {
-        return 'Verification Email Failed';
+        return 'Unable to send OTP';
       });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return error.message;
   }
 }
 

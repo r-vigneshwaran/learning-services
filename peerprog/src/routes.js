@@ -1,9 +1,7 @@
 const {
-  ping,
-  sendSms,
-  recieveSms,
-  sendMobileOtp,
-  sendMessage
+  generateOtp,
+  verifyOtp,
+  resetVerification
 } = require('./controller/SmsController');
 const {
   register,
@@ -58,10 +56,11 @@ const { isRevoked } = require('./middleware/isRevoked');
 router.use(bodyParser.urlencoded({ extended: false }));
 // router.get('/', ping);
 
-router.post('/sendsms', sendSms);
-router.post('/recievesms', recieveSms);
-router.post('/api/sent-otp', sendMobileOtp);
-router.post('/api/sent-message', sendMessage);
+// router.post('/sendsms', sendSms);
+// router.post('/recievesms', recieveSms);
+router.post('/api/user/generate-otp', generateOtp);
+router.post('/api/user/verify-otp', verifyOtp);
+router.post('/api/user/reset-verification', resetVerification);
 
 // Authentication and Authorizations Routes
 router.post('/auth/register', validator, register);
@@ -85,7 +84,7 @@ router.post('/api/get-trip-details', getSpecificTripDetails);
 // user route
 router.get(
   '/api/driver/profile-details/:id',
-  authorization,
+  // authorization,
   getUserProfileDetails
 );
 router.post('/api/driver/add-availability', isRevoked, addVehicleAvailability);

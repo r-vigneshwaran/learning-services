@@ -79,7 +79,7 @@ exports.createCustomerProfile = async (req, res) => {
     const userData = deleteSensitive(newUser);
 
     const newUserData = {
-      ...userData.rows[0],
+      ...userData,
       USER_IMAGE: newUserImg.rows[0].IMAGE
     };
 
@@ -100,7 +100,6 @@ exports.createCustomerProfile = async (req, res) => {
 
 exports.editCustomerProfile = async (req, res) => {
   try {
-    const { id } = req.params;
     const {
       name,
       orgName,
@@ -109,7 +108,8 @@ exports.editCustomerProfile = async (req, res) => {
       aadharNumber,
       orgId,
       userImage,
-      userLogin
+      userLogin,
+      id
     } = req.body;
     if (
       !name ||
@@ -118,7 +118,9 @@ exports.editCustomerProfile = async (req, res) => {
       !aadharNumber ||
       !id ||
       !userImage ||
-      !userLogin
+      !userLogin ||
+      !id ||
+      !userImage
     )
       return res.status(400).json({ message: 'insufficent data' });
 
