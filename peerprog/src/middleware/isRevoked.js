@@ -25,7 +25,10 @@ exports.isRevoked = async (req, res, next) => {
       if (expired) {
         return res
           .status(404)
-          .json({ message: 'Your Account has been Revoked or Deleted' });
+          .json({
+            message:
+              'Your Account has been Revoked or Deleted, please contact the admin'
+          });
       }
       next();
     }

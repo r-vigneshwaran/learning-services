@@ -1,7 +1,8 @@
 const {
   generateOtp,
   verifyOtp,
-  resetVerification
+  resetVerification,
+  fpVerifyOtp
 } = require('./controller/SmsController');
 const {
   register,
@@ -11,7 +12,8 @@ const {
   logout,
   isAuthenticated,
   verifyEmail,
-  deleteUser
+  deleteUser,
+  changePassword
 } = require('./controller/jwtAuth');
 const validator = require('./middleware/validator');
 const authorization = require('./middleware/authorization');
@@ -42,7 +44,10 @@ const {
 } = require('./controller/tripsController');
 const {
   getUserProfileDetails,
-  contactUs
+  contactUs,
+  getUserImage,
+  forgotPasswordDetails,
+  getUserInfo
 } = require('./controller/userController');
 const {
   createCustomerProfile,
@@ -59,8 +64,11 @@ router.use(bodyParser.urlencoded({ extended: false }));
 // router.post('/sendsms', sendSms);
 // router.post('/recievesms', recieveSms);
 router.post('/api/user/generate-otp', generateOtp);
+router.get('/api/user/user-info/:id', getUserInfo);
 router.post('/api/user/verify-otp', verifyOtp);
+router.post('/api/user/verify-fp-otp', fpVerifyOtp);
 router.post('/api/user/reset-verification', resetVerification);
+router.post('/api/user/change-password', changePassword);
 
 // Authentication and Authorizations Routes
 router.post('/auth/register', validator, register);
@@ -90,6 +98,8 @@ router.get(
 router.post('/api/driver/add-availability', isRevoked, addVehicleAvailability);
 router.put('/api/driver/remove-availability/:id', removeVehicleAvailability);
 router.get('/api/driver/get-trip-details/:id', getTripDetails);
+router.get('/api/user/get-user-image/:id', getUserImage);
+router.get('/api/user/forgot-password-details/:id', forgotPasswordDetails);
 
 router.put('/api/driver/edit-trip-details/:id', editTripDetails);
 

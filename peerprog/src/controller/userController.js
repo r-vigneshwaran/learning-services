@@ -1,5 +1,5 @@
 const { pool } = require('../dao');
-const { findVehicleWithId } = require('../utils/helper');
+const { findVehicleWithId, findUserWithId } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
 exports.getUserProfileDetails = async (req, res) => {
@@ -31,26 +31,6 @@ exports.getUserProfileDetails = async (req, res) => {
       [orgId, false]
     );
 
-    for await (const variable of vehicles.rows) {
-      const vId = variable.ID;
-      console.log(vId);
-
-      // const expiresAt = new Date(vehicles.rows[i].TO_DATE);
-      // const today = new Date();
-      // expiresAt.setHours(0, 0, 0, 0);
-      // today.setHours(0, 0, 0, 0);
-      // vehicles.rows[i].IS_AVAILABLE = expiresAt >= today;
-      // console.log(vehicles.rows[i].ID, vehicles.rows[i].IS_AVAILABLE);
-    }
-    vehicles.rows.forEach(async (vehicle) => {
-      const vId = vehicle.ID;
-      const tripDetails = await pool.query(
-        `SELECT "TO_DATE" FROM "TRIPS" WHERE "VEHICLE_ID" = $1`,
-        [vId]
-      );
-      
-    });
-
     res.status(200).json({
       profile: userData,
       vehicles: vehicles.rowCount === 0 ? [] : vehicles.rows,
@@ -78,5 +58,66 @@ exports.contactUs = async (req, res) => {
       .json({ message: 'Thank you for sharing this valuable message' });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+exports.getUserImage = async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(404).json({ message: 'Missing Parameters' });
+
+  try {
+    const userImage = await pool.query(
+      'SELECT "IMAGE" AS "USER_IMAGE" FROM "USER_IMAGES" WHERE "USER_ID" = $1',
+      [id]
+    );
+    res.status(200).json({
+      image: userImage.rows[0]?.USER_IMAGE ? userImage.rows[0]?.USER_IMAGE : ''
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.forgotPasswordDetails = async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(404).json({ message: 'Missing Parameters' });
+
+  try {
+    const user = await pool.query(
+      `SELECT "FP_EXPIRES_AT" FROM "USERS" WHERE "ID" = $1`,
+      [id]
+    );
+
+    const { FP_EXPIRES_AT } = user.rows[0];
+
+    if (FP_EXPIRES_AT < Date.now()) {
+      await pool.query('UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2', [
+        null,
+        null
+      ]);
+      return res.status(403).json({ message: 'Otp has been Expired' });
+    }
+
+    res.status(200).json({ message: 'OTP is still valid', validatable: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getUserInfo = async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(404).json({ message: 'Missing Parameters' });
+
+  try {
+    const user = await findUserWithId(id);
+    if (user.rowCount === 0) {
+      return res.status(401).json({ message: 'No User Found' });
+    }
+    const filtered = deleteSensitive(user);
+    
+    res.status(200).json({
+      userInfo: filtered
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

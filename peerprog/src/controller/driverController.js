@@ -110,7 +110,6 @@ exports.createDriverProfile = async (req, res) => {
 
     res.json({ userInfo: newUserData });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -193,7 +192,6 @@ exports.editProfile = async (req, res) => {
 
     res.json({ profile: newUserData, organization: updatedOrg.rows[0] });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -232,7 +230,6 @@ exports.addVehicle = async (req, res) => {
   )
     return res.status(404).json({ message: 'insufficient data' });
   try {
-    await checkIfOthersVerified(userId);
     const org = await pool.query(
       'SELECT * FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
@@ -279,8 +276,6 @@ exports.addVehicle = async (req, res) => {
       ...vehicleDetails.rows[0],
       VEHICLE_IMAGE: vehicleImageTable.rows[0].IMAGE
     };
-
-    await resetOthersVerified(userId);
 
     res.status(200).json({
       message: 'Vehicle Added to profile successfully',

@@ -28,6 +28,11 @@ const findUserWithId = async (id) => {
 const checkIfUserExists = async (id) => {
   return await pool.query('SELECT "ID" FROM "USERS" WHERE "ID" = $1', [id]);
 };
+const checkIfUserExistswithEmail = async (email) => {
+  return await pool.query('SELECT "ID" FROM "USERS" WHERE "EMAIL" = $1', [
+    email
+  ]);
+};
 const findVehicleWithId = async (id) => {
   return await pool.query(
     'SELECT * FROM "VEHICLE" LEFT JOIN "VEHICLE_IMAGES" ON "VEHICLE_IMAGES"."VEHICLE_ID" = "VEHICLE"."ID" WHERE "ORG_ID" = $1 AND "DELETED" = $2',
@@ -62,10 +67,10 @@ const checkIfUserRevoked = async (id) => {
 };
 const checkIfUserRevokedOrDeletedWithEmail = async (email) => {
   const response = await pool.query(
-    'SELECT "ID", "REVOKE_EXPIRES_AT" FROM "USERS" WHERE "DELETED" = false AND "EMAIL" = $1',
+    'SELECT "ID", "REVOKE_EXPIRES_AT", "REVOKED" FROM "USERS" WHERE "EMAIL" = $1',
     [email]
   );
-  if (response.rows[0].REVOKE_EXPIRES_AT) {
+  if (response.rows[0].REVOKED && response.rows[0]?.REVOKE_EXPIRES_AT) {
     const today = new Date();
     const expireDate = new Date(response.rows[0].REVOKE_EXPIRES_AT);
     return expireDate > today;
@@ -141,5 +146,6 @@ module.exports = {
   checkIfMobile,
   checkIfOthersVerified,
   resetOthersVerified,
-  filterExpired
+  filterExpired,
+  checkIfUserExistswithEmail
 };
