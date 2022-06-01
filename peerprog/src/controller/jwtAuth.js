@@ -21,8 +21,8 @@ const { sendMobileOtp } = require('./SmsController');
 // // registering
 exports.register = async (req, res) => {
   try {
-    const { email, password, rememberMe, eSign, currentStep } = req.body;
-    if (!password || !email)
+    const { email, password, confirmPassword, eSign, currentStep } = req.body;
+    if (!password || !email || !confirmPassword)
       return res
         .status(400)
         .json({ message: 'Email and Password is required' });
@@ -36,13 +36,19 @@ exports.register = async (req, res) => {
         .json({ message: 'User already exists with this Email' });
     }
 
+    if (password !== confirmPassword) {
+      return res
+        .status(400)
+        .json({ message: 'Password and confirm password should be same' });
+    }
+
     //  3. bcrypt the user password
     const saltRound = 10;
     const salt = await bcrypt.genSalt(saltRound);
     const bcryptPassword = await bcrypt.hash(password, salt);
 
     // 5. generating the jwt token
-    const expiry = rememberMe ? '14d' : '1d';
+    const expiry = '14d';
     const { access_token, refresh_token } = jwtGenerator(email, expiry);
 
     const nextStep = currentStep + 1;
@@ -66,7 +72,7 @@ exports.register = async (req, res) => {
 
     const userData = deleteSensitive(newUser);
 
-    const expiryDays = rememberMe ? 14 : 1;
+    const expiryDays = 14;
     res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       maxAge: expiryDays * 24 * 60 * 60 * 1000,
@@ -99,7 +105,7 @@ exports.register = async (req, res) => {
 // login route
 exports.login = async (req, res) => {
   try {
-    const { email, password, rememberMe } = req.body;
+    const { email, password } = req.body;
 
     if (!password || !email)
       return res
@@ -131,10 +137,10 @@ exports.login = async (req, res) => {
     }
 
     // 4. return jwt token
-    const expiry = rememberMe ? '14d' : '1d';
+    const expiry = '14d';
     const { access_token, refresh_token } = jwtGenerator(email, expiry);
 
-    const expiryDays = rememberMe ? 14 : 1;
+    const expiryDays = 14;
     res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       maxAge: expiryDays * 24 * 60 * 60 * 1000,
@@ -313,6 +319,47 @@ exports.deleteUser = async (req, res) => {
     await pool.query('DELETE FROM "USERS" WHERE "ID" = $1', [id]);
 
     res.status(200).json({ userInfo: null, currentStep: 1 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const { id, password, confirmPassword } = req.body;
+  if (!id || !password || !confirmPassword)
+    return res.status(404).json({ message: 'Missing parameter' });
+
+  try {
+    if (password !== confirmPassword) {
+      return res
+        .status(400)
+        .json({ message: 'Password and confirm password should be same' });
+    }
+    const user = await pool.query(
+      `SELECT "PASSWORD", "FP_VERIFIED" FROM "USERS" WHERE "ID" = $1`,
+      [id]
+    );
+    if (!user.rows[0].FP_VERIFIED)
+      return res
+        .status(403)
+        .json({ message: 'Please verify to change password' });
+
+    const validPassword = await bcrypt.compare(password, user.rows[0].PASSWORD);
+    if (validPassword) {
+      return res
+        .status(401)
+        .json({ message: "Choose a password you haven't used before" });
+    }
+
+    const saltRound = 10;
+    const salt = await bcrypt.genSalt(saltRound);
+    const bcryptPassword = await bcrypt.hash(password, salt);
+
+    await pool.query(
+      `UPDATE "USERS" SET "PASSWORD" = $1, "OTP" = $2, "FP_EXPIRES_AT" = $3,"FP_VERIFIED" = $4, "FP_CURRENT_STEP" = $5 WHERE "ID" = $6`,
+      [bcryptPassword, null, null, false, 1, id]
+    );
+    res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

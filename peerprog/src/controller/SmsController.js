@@ -10,12 +10,13 @@ const {
   checkIfEmail,
   checkIfMobile,
   checkIfUserExists,
-  resetOthersVerified
+  resetOthersVerified,
+  checkIfUserExistswithEmail
 } = require('../utils/helper');
 const sendVerificationcode = require('./verification');
 
-exports.sendMobileOtp = ({ id, mobile }) => {
-  if (!id || !mobile) return 'Mobile number and user id is required';
+exports.sendMobileOtp = ({ id, mobile, isFp }) => {
+  if (!mobile) return 'Mobile number and user id is required';
 
   try {
     smsReq.headers({
@@ -30,10 +31,17 @@ exports.sendMobileOtp = ({ id, mobile }) => {
     });
     const saltRound = 10;
     bcrypt.hash(uniqueString, saltRound).then(async (hashed) => {
-      await pool.query(
-        'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2 WHERE "ID" = $3',
-        [hashed, Date.now() + 7200000, id]
-      );
+      if (isFp) {
+        await pool.query(
+          'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2 WHERE "EMAIL" = $3',
+          [hashed, Date.now() + 7200000, mobile]
+        );
+      } else {
+        await pool.query(
+          'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2 WHERE "EMAIL" = $3',
+          [hashed, Date.now() + 7200000, mobile]
+        );
+      }
     });
 
     const data = {
@@ -44,10 +52,8 @@ exports.sendMobileOtp = ({ id, mobile }) => {
     smsReq.form(data);
     smsReq.end(function (result) {
       if (result.error) {
-        console.log(res.error);
         return result.error.message;
       }
-      console.log(result.body);
       return result.body.message;
     });
   } catch (error) {
@@ -55,74 +61,28 @@ exports.sendMobileOtp = ({ id, mobile }) => {
   }
 };
 
-// exports.getUsers = async function (req, res) {
-//   let result = responseBody;
-//   await getUsers()
-//     .then((userRes) => {
-//       result.Body.data = userRes.rows;
-//     })
-//     .catch((err) => {
-//       result.Body.error = err.message;
-//     });
-//   res.status(200).json(result);
-// };
-
-// exports.sendSms = function (req, res) {
-//   const { to } = req.body;
-//   const accountSid = 'AC78e193e4827fbe84fd698faeb43de80c'; //process.env.TWILIO_ACCOUNT_SID;
-//   const authToken = '5d4bcbf8a5cd125a8dc8e8d3271bfd92'; //process.env.TWILIO_AUTH_TOKEN;
-//   const client = require('twilio')(accountSid, authToken);
-
-//   client.messages
-//     .create({
-//       body: 'This is the ship that made the Kessel Run in fourteen parsecs?',
-//       from: '+1828882290',
-//       to: `+91${to}`
-//     })
-//     .then((message) => {
-//       console.log(message);
-//       return res.send(`Message sent to ${message.to}`);
-//     })
-//     .catch((error) => {
-//       console.log(error);
-//       return res.send(`Error sending message - ${error.message}`);
-//     });
-// };
-
-// exports.recieveSms = function (req, res) {
-//   const MessagingResponse = require('twilio').twiml.MessagingResponse;
-//   const twiml = new MessagingResponse();
-//   const msgFrom = req.body.From;
-
-//   console.log(req.body, '\n\n', msgFrom);
-//   twiml.message(`Hey ${msgFrom}, Your msg received!!`);
-
-//   res.writeHead(200, { 'Content-Type': 'text/xml' });
-//   res.end(twiml.toString());
-// };
-
 exports.generateOtp = async (req, res) => {
-  const { id, emailOrMobile } = req.body;
-  if (!id || !emailOrMobile)
+  const { emailOrMobile, isFp } = req.body;
+  if (!emailOrMobile)
     return res.status(404).json({
       message: 'Mobile number or Email Address and user id is required'
     });
 
   try {
-    const user = await checkIfUserExists(id);
+    const user = await checkIfUserExistswithEmail(emailOrMobile);
     if (!user.rows[0])
-      return res.status(400).json({ message: 'User Does not exist' });
+      return res.status(400).json({ message: `User does not exist` });
 
     await pool.query(
-      'UPDATE "USERS" SET "OTHERS_VERIFIED" = $1 WHERE "ID" = $2',
-      [false, id]
+      'UPDATE "USERS" SET "OTHERS_VERIFIED" = $1, "FP_VERIFIED" = $2 WHERE "EMAIL" = $3',
+      [false, false, emailOrMobile]
     );
 
     if (checkIfEmail(emailOrMobile)) {
-      sendVerificationcode({ id, email: emailOrMobile });
+      sendVerificationcode({ email: emailOrMobile, isFp });
     }
     if (checkIfMobile(emailOrMobile)) {
-      this.sendMobileOtp({ id, mobile: emailOrMobile });
+      this.sendMobileOtp({ mobile: emailOrMobile, isFp });
     }
 
     res.status(200).json({ message: 'Otp Send Successfully' });
@@ -171,6 +131,49 @@ exports.verifyOtp = async (req, res) => {
   const newUser = await pool.query(
     'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "OTHERS_VERIFIED" = $3 WHERE "ID" = $4 RETURNING *',
     [null, null, true, id]
+  );
+  res.status(200).json({
+    verified: true,
+    userInfo: newUser.rows[0],
+    message: 'Verification completed successfully'
+  });
+};
+
+exports.fpVerifyOtp = async (req, res) => {
+  const { uniqueString, emailOrMobile } = req.body;
+  if (!emailOrMobile || !uniqueString)
+    return res.status(404).json({ message: 'Missing Parameters' });
+
+  const user = await pool.query(
+    `SELECT "FP_EXPIRES_AT", "OTP", "FP_CURRENT_STEP" FROM "USERS" WHERE "EMAIL" = $1`,
+    [emailOrMobile]
+  );
+  if (user.rowCount === 0) {
+    return res.status(404).json({ message: 'This User does not exist' });
+  }
+  const { FP_EXPIRES_AT, OTP, FP_CURRENT_STEP } = user.rows[0];
+
+  if (!OTP) {
+    return res.status(401).json({ message: 'No OTP found in user record' });
+  }
+  if (FP_EXPIRES_AT < Date.now()) {
+    await pool.query(
+      'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2 WHERE "EMAIL" = $3',
+      [null, null, emailOrMobile]
+    );
+    return res.status(400).json({ message: 'Otp has been Expired' });
+  }
+  const uniqueOtp = uniqueString.toString();
+  const dbOtp = OTP.toString();
+  const validOtp = await bcrypt.compare(uniqueOtp, dbOtp);
+
+  if (!validOtp)
+    return res.status(400).json({ message: 'The OTP provided is incorrect' });
+
+  const nextStep = parseInt(FP_CURRENT_STEP) + 1;
+  const newUser = await pool.query(
+    'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2, "FP_VERIFIED" = $3, "FP_CURRENT_STEP" = $4 WHERE "EMAIL" = $5 RETURNING *',
+    [null, null, true, nextStep, emailOrMobile]
   );
   res.status(200).json({
     verified: true,

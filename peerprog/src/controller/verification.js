@@ -15,13 +15,10 @@ const transporter = nodemailer.createTransport({
 transporter.verify((error, success) => {
   if (error) {
     console.log('error', error);
-  } else {
-    console.log('Ready to Mail');
-    console.log(success);
   }
 });
 
-async function sendVerificationcode({ id, email }) {
+async function sendVerificationcode({ id, email, isFp = false }) {
   try {
     const uniqueString = otpGenerator.generate(5, {
       upperCaseAlphabets: false,
@@ -33,7 +30,7 @@ async function sendVerificationcode({ id, email }) {
       from: process.env.AUTH_EMAIL,
       to: email,
       subject: 'Verify your Email (Do Not Reply)',
-      html: `<p>Verify your email address to complete the sign up and login to your account</p>
+      html: `<p>Verify yourself before completing the process</p>
        <br/> 
        <p>This OTP <b>expires in 2 hours</b>.</p>
         <br/>
@@ -42,10 +39,17 @@ async function sendVerificationcode({ id, email }) {
 
     const saltRound = 10;
     bcrypt.hash(uniqueString, saltRound).then(async (hashed) => {
-      await pool.query(
-        'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2 WHERE "ID" = $3',
-        [hashed, Date.now() + 7200000, id]
-      );
+      if (isFp) {
+        await pool.query(
+          'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2 WHERE "EMAIL" = $3',
+          [hashed, Date.now() + 7200000, email]
+        );
+      } else {
+        await pool.query(
+          'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2 WHERE "EMAIL" = $3',
+          [hashed, Date.now() + 7200000, email]
+        );
+      }
     });
     transporter
       .sendMail(mailOptions)

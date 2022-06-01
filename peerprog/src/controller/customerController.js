@@ -85,7 +85,6 @@ exports.createCustomerProfile = async (req, res) => {
 
     res.json({ userInfo: newUserData });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: error.message });
     if (orgId)
       await pool.query('DELETE FROM "ORGANIZATION" WHERE "ID" = $1', [orgId]);
@@ -169,7 +168,6 @@ exports.editCustomerProfile = async (req, res) => {
 
     res.json({ profile: newUserData, organization: updatedOrg.rows[0] });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };

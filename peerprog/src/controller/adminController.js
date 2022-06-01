@@ -689,7 +689,6 @@ exports.addUserProfile = async (req, res) => {
       message: 'User Added successfully'
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -721,7 +720,6 @@ exports.writeMessage = async (req, res) => {
     var comma = author.length ? ',' : '';
     return author + comma + val;
   }, '');
-  // console.log(result);
-  // const { rows } = await pool.query(query, params);
+  
   res.json({ results: result });
 };

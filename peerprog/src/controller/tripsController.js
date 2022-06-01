@@ -239,9 +239,10 @@ exports.getSpecificTripDetails = async (req, res) => {
       "V"."TYPE" AS "TYPE" , "V"."VEHICLE_NAME" AS "VEHICLE_NAME", "V"."CATEGORY_CODE" AS "CATEGORY_CODE", "V"."MODEL_YEAR" AS "MODEL_YEAR",
       "V"."RC_VALIDITY" AS "RC_VALIDITY" , "V"."OWNERSHIP" AS "OWNERSHIP", "V"."OWNER_NAME" AS "OWNERNAME", "V"."CITY" AS "CITY",
       "V"."IS_AVAILABLE" AS "IS_AVAILABLE", "V"."ID" AS "ID" , "VI"."IMAGE" AS "IMAGE", "V"."ID" AS "ID" 
-	  , "B"."CUSTOMER_ID" AS "CUSTOMER_ID"
+	  , "B"."CUSTOMER_ID" AS "CUSTOMER_ID", "O"."NAME" AS "ORG_NAME"
       FROM "TRIPS" "T" LEFT JOIN "USERS" "U" ON "T"."DRIVER_ID" = "U"."ID"
       LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID" AND "V"."DELETED" = false 
+      LEFT JOIN "ORGANIZATION" "O" ON "T"."ORG_ID" = "O"."ID"
       LEFT JOIN "BOOKING" "B" ON "T"."ID" = "B"."TRIP_ID" AND "B"."CUSTOMER_ID" = $1
       LEFT JOIN "VEHICLE_IMAGES" "VI" ON "V"."ID" = "VI"."VEHICLE_ID" WHERE "T"."VEHICLE_ID" = $2 AND "T"."DELETED" = $3`,
       [userId, vehicleId, false]

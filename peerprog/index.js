@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const credentials = require('./src/config/credentials');
 const corsOptions = require('./src/config/corsOptions');
 var bodyParser = require('body-parser');
+var jobs = require('./src/scheduler/cronJobs');
 
 app.use(cookieParser());
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -16,6 +17,7 @@ app.use(
     extended: true
   })
 );
+jobs.start();
 
 // const whitelist = ['http://localhost:8080'];
 // const corsOptions = {

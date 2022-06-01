@@ -13,10 +13,9 @@ module.exports = async (req, res, next) => {
   if (!jwtToken) {
     return res.status(403).json({ msg: 'authorization denied' });
   }
-
   // verifying if the token is valid
   jwt.verify(jwtToken, process.env.JWT_ACCESS_TOKEN, (err, payload) => {
-    if (err) return sendStatus(403); //invalid token
+    if (err) return res.sendStatus(403); //invalid token
     if (payload) {
       // returning the payload to the user
       req.user = payload.user;
