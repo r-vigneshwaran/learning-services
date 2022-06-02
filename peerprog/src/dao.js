@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const Pool = require('pg').Pool;
 // const pool = new Pool({
 //   user: 'postgres',
@@ -8,11 +10,11 @@ const Pool = require('pg').Pool;
 // });
 
 const pool = new Pool({
-  user: 'postgres',
-  password: 'admin123',
-  host: 'localhost',
-  port: 5432,
-  database: 'e-gadi'
+  user: process.env.PG_USER,
+  password: process.env.PG_PASS,
+  host: process.env.PG_HOST,
+  port: process.env.PG_PORT,
+  database: process.env.PG_DB
 });
 
 const getUsers = async () => {

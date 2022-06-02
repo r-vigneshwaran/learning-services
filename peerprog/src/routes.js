@@ -13,6 +13,7 @@ const {
   isAuthenticated,
   verifyEmail,
   deleteUser,
+  userForgotPassword,
   changePassword
 } = require('./controller/jwtAuth');
 const validator = require('./middleware/validator');
@@ -68,6 +69,7 @@ router.get('/api/user/user-info/:id', getUserInfo);
 router.post('/api/user/verify-otp', verifyOtp);
 router.post('/api/user/verify-fp-otp', fpVerifyOtp);
 router.post('/api/user/reset-verification', resetVerification);
+router.post('/api/user/user-forgot-password', userForgotPassword);
 router.post('/api/user/change-password', changePassword);
 
 // Authentication and Authorizations Routes

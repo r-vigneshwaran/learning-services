@@ -85,7 +85,9 @@ exports.generateOtp = async (req, res) => {
       this.sendMobileOtp({ mobile: emailOrMobile, isFp });
     }
 
-    res.status(200).json({ message: 'Otp Send Successfully' });
+    res
+      .status(200)
+      .json({ message: 'Otp Send Successfully', ID: user.rows[0]?.ID });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -145,13 +147,13 @@ exports.fpVerifyOtp = async (req, res) => {
     return res.status(404).json({ message: 'Missing Parameters' });
 
   const user = await pool.query(
-    `SELECT "FP_EXPIRES_AT", "OTP", "FP_CURRENT_STEP" FROM "USERS" WHERE "EMAIL" = $1`,
+    `SELECT "FP_EXPIRES_AT", "OTP" FROM "USERS" WHERE "EMAIL" = $1`,
     [emailOrMobile]
   );
   if (user.rowCount === 0) {
     return res.status(404).json({ message: 'This User does not exist' });
   }
-  const { FP_EXPIRES_AT, OTP, FP_CURRENT_STEP } = user.rows[0];
+  const { FP_EXPIRES_AT, OTP } = user.rows[0];
 
   if (!OTP) {
     return res.status(401).json({ message: 'No OTP found in user record' });
@@ -170,10 +172,10 @@ exports.fpVerifyOtp = async (req, res) => {
   if (!validOtp)
     return res.status(400).json({ message: 'The OTP provided is incorrect' });
 
-  const nextStep = parseInt(FP_CURRENT_STEP) + 1;
+  const nextStep = 2;
   const newUser = await pool.query(
-    'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2, "FP_VERIFIED" = $3, "FP_CURRENT_STEP" = $4 WHERE "EMAIL" = $5 RETURNING *',
-    [null, null, true, nextStep, emailOrMobile]
+    'UPDATE "USERS" SET "OTP" = $1, "FP_VERIFIED" = $2, "FP_CURRENT_STEP" = $3 WHERE "EMAIL" = $4 RETURNING *',
+    [null, true, nextStep, emailOrMobile]
   );
   res.status(200).json({
     verified: true,

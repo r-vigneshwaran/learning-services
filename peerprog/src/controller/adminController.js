@@ -3,11 +3,38 @@ const {
   findVehicleWithId,
   checkIfUserExists,
   checkIfUserRevoked,
-  findUser,
-  findUserWithId
+  findUser
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 const bcrypt = require('bcrypt');
+const { ROLE_CODE } = require('../config/userRoleCode');
+
+exports.adminDashboard = async (req, res) => {
+  try {
+    const users = await pool.query(`SELECT COUNT("ID") FROM "USERS"`);
+    const customers = await pool.query(
+      `SELECT COUNT("ID") FROM "USERS" WHERE "ROLE_CODE" = $1`,
+      [ROLE_CODE.CUSTOMER]
+    );
+    const drivers = await pool.query(
+      `SELECT COUNT("ID") FROM "USERS" WHERE "ROLE_CODE" = $1`,
+      [ROLE_CODE.DRIVER]
+    );
+    const vehicles = await pool.query(`SELECT COUNT("ID") FROM "VEHICLE"`);
+    const trips = await pool.query(`SELECT COUNT("ID") FROM "TRIPS"`);
+    const bookings = await pool.query(`SELECT COUNT("ID") FROM "BOOKING"`);
+    res.status(200).json({
+      usersCount: parseInt(users.rows[0].count),
+      customersCount: parseInt(customers.rows[0].count),
+      driversCount: parseInt(drivers.rows[0].count),
+      vehiclesCount: parseInt(vehicles.rows[0].count),
+      tripsCount: parseInt(trips.rows[0].count),
+      bookingsCount: parseInt(bookings.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 exports.getUsers = async (req, res) => {
   const { page, size } = req.query;
@@ -720,6 +747,6 @@ exports.writeMessage = async (req, res) => {
     var comma = author.length ? ',' : '';
     return author + comma + val;
   }, '');
-  
+
   res.json({ results: result });
 };

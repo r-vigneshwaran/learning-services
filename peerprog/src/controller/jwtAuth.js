@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const { pool } = require('../dao');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { jwtGenerator, jwtAccessGenerator } = require('../utils/jwtGenerator');
 const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
@@ -324,9 +323,9 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-exports.changePassword = async (req, res) => {
-  const { id, password, confirmPassword } = req.body;
-  if (!id || !password || !confirmPassword)
+exports.userForgotPassword = async (req, res) => {
+  const { emailOrMobile, password, confirmPassword } = req.body;
+  if (!emailOrMobile || !password || !confirmPassword)
     return res.status(404).json({ message: 'Missing parameter' });
 
   try {
@@ -336,9 +335,17 @@ exports.changePassword = async (req, res) => {
         .json({ message: 'Password and confirm password should be same' });
     }
     const user = await pool.query(
-      `SELECT "PASSWORD", "FP_VERIFIED" FROM "USERS" WHERE "ID" = $1`,
-      [id]
+      `SELECT "PASSWORD", "FP_VERIFIED", "FP_EXPIRES_AT" FROM "USERS" WHERE "EMAIL" = $1`,
+      [emailOrMobile]
     );
+    if (user.rows[0].FP_EXPIRES_AT < Date.now()) {
+      console.log(user.rows[0].FP_EXPIRES_AT);
+      await pool.query(
+        'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2, "FP_CURRENT_STEP" = $3 WHERE "EMAIL" = $4',
+        [null, null, 1, emailOrMobile]
+      );
+      return res.status(403).json({ message: 'Otp has been Expired' });
+    }
     if (!user.rows[0].FP_VERIFIED)
       return res
         .status(403)
@@ -356,9 +363,58 @@ exports.changePassword = async (req, res) => {
     const bcryptPassword = await bcrypt.hash(password, salt);
 
     await pool.query(
-      `UPDATE "USERS" SET "PASSWORD" = $1, "OTP" = $2, "FP_EXPIRES_AT" = $3,"FP_VERIFIED" = $4, "FP_CURRENT_STEP" = $5 WHERE "ID" = $6`,
-      [bcryptPassword, null, null, false, 1, id]
+      `UPDATE "USERS" SET "PASSWORD" = $1, "OTP" = $2, "FP_EXPIRES_AT" = $3,"FP_VERIFIED" = $4, "FP_CURRENT_STEP" = $5 WHERE "EMAIL" = $6`,
+      [bcryptPassword, null, null, false, 1, emailOrMobile]
     );
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const { id, password, confirmPassword, oldPassword } = req.body;
+  if (!id || !password || !confirmPassword || !oldPassword)
+    return res.status(404).json({ message: 'Missing parameter' });
+
+  try {
+    const user = await pool.query(
+      `SELECT "PASSWORD", "FP_VERIFIED", "FP_EXPIRES_AT" FROM "USERS" WHERE "ID" = $1`,
+      [id]
+    );
+
+    const validPassword = await bcrypt.compare(
+      oldPassword,
+      user.rows[0].PASSWORD
+    );
+    if (!validPassword) {
+      return res.status(401).json({ message: 'Current Password is Incorrect' });
+    }
+
+    if (password !== confirmPassword) {
+      return res
+        .status(400)
+        .json({ message: 'Password and confirm password should be same' });
+    }
+
+    const isSamePassword = await bcrypt.compare(
+      password,
+      user.rows[0].PASSWORD
+    );
+    if (isSamePassword) {
+      return res
+        .status(401)
+        .json({ message: "Choose a password you haven't used before" });
+    }
+
+    const saltRound = 10;
+    const salt = await bcrypt.genSalt(saltRound);
+    const bcryptPassword = await bcrypt.hash(password, salt);
+
+    await pool.query(`UPDATE "USERS" SET "PASSWORD" = $1 WHERE "ID" = $2`, [
+      bcryptPassword,
+      id
+    ]);
     res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
