@@ -44,26 +44,29 @@ exports.testing = async (req, res) => {
   page = page ? page : 1;
   size = size ? size : 5;
   try {
-    const query = `SELECT "T"."TO_DATE" AS "TO_DATE"
-    FROM "TRIPS" "T" LEFT JOIN "USERS" "U" ON "T"."DRIVER_ID" = "U"."ID"
-    LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID" 
-    LEFT JOIN "VEHICLE_IMAGES" "VI" ON "V"."ID" = "VI"."VEHICLE_ID" 
-    WHERE "V"."CATEGORY_CODE" = $3 AND "T"."DELETED" = $4
-    LIMIT $2 OFFSET (($1 - 1) * $2);`;
-    const { rows } = await pool.query(query, [
-      page,
-      size,
-      'LARGE_VEHICLE',
-      false
-    ]);
+    // const query = `SELECT "T"."TO_DATE" AS "TO_DATE"
+    // FROM "TRIPS" "T" LEFT JOIN "USERS" "U" ON "T"."DRIVER_ID" = "U"."ID"
+    // LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID"
+    // LEFT JOIN "VEHICLE_IMAGES" "VI" ON "V"."ID" = "VI"."VEHICLE_ID"
+    // WHERE "V"."CATEGORY_CODE" = $3 AND "T"."DELETED" = $4
+    // LIMIT $2 OFFSET (($1 - 1) * $2);`;
+    // const { rows } = await pool.query(query, [
+    //   page,
+    //   size,
+    //   'LARGE_VEHICLE',
+    //   false
+    // ]);
 
-    const noOfUsers = await pool.query(
-      `SELECT COUNT('ID') FROM "TRIPS" "T" LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID" WHERE "V"."DELETED" = false AND "T"."DELETED" = $1`,
-      [false]
-    );
-    const filtered = filterExpired(rows);
+    // const noOfUsers = await pool.query(
+    //   `SELECT COUNT('ID') FROM "TRIPS" "T" LEFT JOIN "VEHICLE" "V" ON "T"."VEHICLE_ID" = "V"."ID" WHERE "V"."DELETED" = false AND "T"."DELETED" = $1`,
+    //   [false]
+    // );
+    // const filtered = filterExpired(rows);
 
-    res.status(200).json({ filtered: filtered, unFiltered: rows });
+    // res.status(200).json({ filtered: filtered, unFiltered: rows });
+
+    const response = await pool.query(`SELECT "TO_DATE" FROM "TRIPS"`);
+    res.json({ data: response.rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

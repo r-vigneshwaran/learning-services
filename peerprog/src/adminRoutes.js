@@ -23,7 +23,8 @@ const {
   deleteQuery,
   getBookings,
   getBookingDetails,
-  writeMessage
+  writeMessage,
+  adminDashboard
 } = require('./controller/adminController');
 const { isRevoked } = require('./middleware/isRevoked');
 
@@ -51,5 +52,6 @@ router.post('/add-user', addUserProfile);
 router.put('/edit-user/:id', editUserProfile);
 router.put('/edit-organization', editOrg);
 router.post('/write-message', writeMessage);
+router.get('/get-dashboard-details', adminDashboard);
 
 module.exports = router;
