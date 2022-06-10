@@ -178,6 +178,15 @@ exports.bookTrip = async (req, res) => {
     if (!tripId || !userId || !eSign || !vehicleId)
       return res.status(400).json({ message: 'Insufficient Data' });
 
+    const userRole = await pool.query(
+      `SELECT "ROLE_CODE" FROM "USERS" WHERE "ID" = $1`,
+      [userId]
+    );
+    if (parseInt(userRole.rows[0]) !== ROLE_CODE.CUSTOMER)
+      return res
+        .status(403)
+        .json({ message: 'you are not a customer to book this trip' });
+
     const trip = await pool.query(
       'SELECT "USERS"."MOBILE" AS "MOBILE", "USERS"."NAME" AS "NAME" FROM "TRIPS" LEFT JOIN "USERS" ON "USERS"."ID" = "TRIPS"."DRIVER_ID" WHERE "TRIPS"."ID" = $1 AND "TRIPS"."DELETED" = $2',
       [tripId, false]
