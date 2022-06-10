@@ -1,0 +1,228 @@
+GET http://localhost:8000/auth HTTP/1.1
+
+###
+POST http://localhost:8000/auth/register HTTP/1.1
+Content-Type: application/json
+
+{
+  "name" : "king",
+  "email": "new@gmail.com",
+  "password": "1234567"
+}
+
+###
+POST http://localhost:8000/auth/login HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "alpha@gmail.com",
+  "password": "1234567"
+}
+
+
+###
+GET http://localhost:8000/auth/is-verified HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxwaGFAZ21haWwuY29tIiwiaWF0IjoxNjQ3MDA1Mzk1LCJleHAiOjE2NDcwMDU2OTV9.KSuUnFi2HcR-BY3S8BO3SQNod0jBnZgprySuzxaNt28
+
+
+
+###
+GET http://localhost:8000/auth/refresh-token HTTP/1.1
+Content-Type: application/json
+
+
+###
+GET http://localhost:8000/auth/logout HTTP/1.1
+Content-Type: application/json
+
+###
+GET http://localhost:8000/dashboard HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxwaGFAZ21haWwuY29tIiwiaWF0IjoxNjQ3MDA3Nzg2LCJleHAiOjE2NDcwMDgwODZ9.dkMMFShkhpAwWlsNSZnhPUwADDhn4dTrXiJxg7oJXxw
+
+
+###
+POST http://localhost:8000/api/create-profile HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "vigneshwaran",
+  "code": "1234567",
+  "mobile":"123",
+  "id":"2",
+  "orgName":"blue Origin",
+  "city":"coimbatore"
+}
+
+
+
+
+###
+POST http://localhost:8000/user/verify HTTP/1.1
+Content-Type: application/json
+
+{
+  "userId": "6",
+  "uniqueString": "1234567"
+}
+
+###
+POST http://localhost:8000/api/driver/add-vehicle HTTP/1.1
+Content-Type: application/json
+
+{
+  "regNo":"12345",
+  "orgId":"7",
+  "capacityUnit":"tons",
+  "type":"Large vehicle",
+  "vehicleName":"Tata Ace",
+  "categoryCode":"LARGE_VEHICLES",
+  "modelYear":"2018",
+  "RcValidity":"2030",
+  "ownerShip":"owner",
+  "ownerName":"Vignesh",
+  "city":"Chennai",
+  "userId":"31",
+  "vehicleImage":"Image"
+}
+
+###
+POST http://localhost:8000/api/driver/get-vehicles HTTP/1.1
+Content-Type: application/json
+
+{
+  "orgId":"7"
+}
+###
+POST http://localhost:8000/api/driver/get-vehicles HTTP/1.1
+Content-Type: application/json
+
+{
+  "orgId":"7"
+}
+
+###
+PUT http://localhost:8000/api/driver/complete-registration/32 HTTP/1.1
+Content-Type: application/json
+
+###
+GET http://localhost:8000/api/driver/profile-details/86 HTTP/1.1
+Content-Type: application/json
+
+
+###
+POST http://localhost:8000/api/driver/add-availability HTTP/1.1
+Content-Type: application/json
+
+{
+  "fromDate":"7",
+  "toDate":"7",
+  "fromLocation":"7",
+  "toLocation":"7",
+  "userId":"36",
+  "vehicleId":"47",
+  "orgId":"36",
+  "availableCapacity" : "10",
+  "price" : 2000
+}
+###
+DELETE  http://localhost:8000/api/driver/delete-vehicle/48/36 HTTP/1.1
+Content-Type: application/json
+
+{
+  "fromDate":"7",
+  "toDate":"7",
+  "fromLocation":"7",
+  "toLocation":"7",
+  "userId":"36",
+  "vehicleId":"47",
+  "orgId":"36",
+  "availableCapacity" : "10",
+  "price" : 2000
+}
+
+###
+POST http://localhost:8000/api/driver/edit-vehicle HTTP/1.1
+Content-Type: application/json
+
+{
+ "regNo":"TN 12345",
+  "orgId":"7",
+  "capacityUnit":"tons",
+  "type":"Large vehicle",
+  "vehicleName":"Tata Ace",
+  "categoryCode":"LARGE_VEHICLES",
+  "modelYear":"2018",
+  "RcValidity":"2030",
+  "ownerShip":"owner",
+  "ownerName":"Vignesh",
+  "city":"Chennai",
+  "userId":"31",
+  "vehicleImage":"Image",
+  "vId":"46"
+}
+
+
+###
+GET http://localhost:8000/api/get-trip-details/56 HTTP/1.1
+Content-Type: application/json
+
+
+
+###
+POST http://localhost:8000/api/customer/book-this-ride HTTP/1.1
+Content-Type: application/json
+
+{
+ "tripId":13,
+  "userId":45
+}
+
+###
+POST http://localhost:8000/api/sent-otp HTTP/1.1
+Content-Type: application/json
+
+{
+ "tripId":13,
+  "userId":45
+}
+
+###
+POST http://localhost:8000/api/sent-message HTTP/1.1
+Content-Type: application/json
+
+{
+ "toNumber":8072205938,
+  "message":"Hello world"
+}
+
+###
+POST http://localhost:8000/api/admin/get-users?page=1&size=2 HTTP/1.1
+Content-Type: application/json
+
+{
+ "page":2,
+  "size":2
+}
+
+###
+GET http://localhost:8000/api/customer/get-booking-log/73 HTTP/1.1
+Content-Type: application/json
+
+
+###
+GET http://localhost:8000/testing HTTP/1.1
+Content-Type: application/json
+
+###
+POST http://localhost:8000/api/admin/write-message HTTP/1.1
+Content-Type: application/json
+
+{
+  "type":"SINGLE",
+  "userId":4,
+  "message":"hello world"
+}
+
+
