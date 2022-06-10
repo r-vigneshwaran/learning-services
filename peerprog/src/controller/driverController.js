@@ -180,7 +180,7 @@ exports.editProfile = async (req, res) => {
     const newUserId = newUser.rows[0].ID;
 
     const newUserImg = await pool.query(
-      'UPDATE "USER_IMAGES" SET "IMAGE" = $1, "USER_ID" = $2 RETURNING *',
+      'UPDATE "USER_IMAGES" SET "IMAGE" = $1, "USER_ID" = $2 RETURNING "IMAGE"',
       [userImage, newUserId]
     );
 

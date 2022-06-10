@@ -20,8 +20,7 @@ exports.sendMobileOtp = ({ id, mobile, isFp }) => {
 
   try {
     smsReq.headers({
-      authorization:
-        'VUrbYq23CBpAm1lkQcLnWOsSDZa0tyeThIoEiJdw8xGuXKgv6903qnmrhd1IEv8BcMJUFZQXRjafAzbg'
+      authorization: process.env.FAST2SMS_API_KEY
     });
 
     const uniqueString = otpGenerator.generate(5, {

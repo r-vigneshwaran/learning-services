@@ -73,20 +73,19 @@ router.post('/api/user/user-forgot-password', userForgotPassword);
 router.post('/api/user/change-password', changePassword);
 
 // Authentication and Authorizations Routes
-router.post('/auth/register', validator, register);
-router.post('/auth/login', validator, login);
-router.get('/auth/is-verified', authorization, authorize);
-router.get('/auth/is-authenticated', isAuthenticated);
-router.get('/auth/refresh-token', refreshToken);
-router.get('/auth/logout', logout);
+router.post('/api/auth/register', validator, register);
+router.post('/api/auth/login', validator, login);
+router.get('/api/auth/is-authenticated', isAuthenticated);
+router.get('/api/auth/refresh-token', refreshToken);
+router.get('/api/auth/logout', logout);
 
 // verification
-router.post('/user/verify', verifyEmail);
-router.post('/user/delete-user/:id', deleteUser);
+router.post('/api/user/verify', verifyEmail);
+router.post('/api/user/delete-user/:id', deleteUser);
 
 // dashboard routes
-router.get('/dashboard', home);
-router.get('/testing', testing);
+router.get('/api/dashboard', home);
+router.post('/api/testing', testing);
 router.get('/api/home/large-vehicles', largeVehicles);
 router.get('/api/home/small-vehicles', smallVehicles);
 router.post('/api/get-trip-details', getSpecificTripDetails);
