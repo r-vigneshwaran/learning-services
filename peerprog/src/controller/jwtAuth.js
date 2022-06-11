@@ -11,7 +11,8 @@ const {
   findUserWithRefreshToken,
   findUserWithId,
   checkIfUserExists,
-  checkIfUserRevokedOrDeleted
+  checkIfUserRevokedOrDeleted,
+  decodeBase64
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 const { EMAIL_REGEX, MOBILE_REGEX } = require('../constants/generalConstants');
@@ -40,11 +41,10 @@ exports.register = async (req, res) => {
         .status(400)
         .json({ message: 'Password and confirm password should be same' });
     }
-
     //  3. bcrypt the user password
     const saltRound = 10;
     const salt = await bcrypt.genSalt(saltRound);
-    const bcryptPassword = await bcrypt.hash(password, salt);
+    const bcryptPassword = await bcrypt.hash(decodeBase64(password), salt);
 
     // 5. generating the jwt token
     const expiry = '14d';
@@ -126,9 +126,11 @@ exports.login = async (req, res) => {
         message:
           'Your Account has been revoked or deleted by the owner, please contact the owner to unblock'
       });
-
     //  3. check if incoming password is same as the db password
-    const validPassword = await bcrypt.compare(password, user.rows[0].PASSWORD);
+    const validPassword = await bcrypt.compare(
+      decodeBase64(password),
+      user.rows[0].PASSWORD
+    );
     if (!validPassword) {
       return res
         .status(401)
