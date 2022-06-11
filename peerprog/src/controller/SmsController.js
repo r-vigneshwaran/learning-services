@@ -1,15 +1,11 @@
-const { getUsers } = require('../dao');
-const { responseBody } = require('../utils/interface');
 var unirest = require('unirest');
 const otpGenerator = require('otp-generator');
 const { pool } = require('../dao');
 const bcrypt = require('bcrypt');
 var smsReq = unirest('POST', 'https://www.fast2sms.com/dev/bulkV2');
-var http = require('http');
 const {
   checkIfEmail,
   checkIfMobile,
-  checkIfUserExists,
   resetOthersVerified,
   checkIfUserExistswithEmail
 } = require('../utils/helper');
