@@ -1,0 +1,8 @@
+###
+POST http://localhost:8000/sent-otp HTTP/1.1
+content-type: application/json
+
+{
+   "emailOrMobile": "8072205938",
+    "id": 101
+}

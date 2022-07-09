@@ -2,7 +2,9 @@ const {
   generateOtp,
   verifyOtp,
   resetVerification,
-  fpVerifyOtp
+  fpVerifyOtp,
+  sentOtpTest,
+  sentOtpForDriver
 } = require('./controller/SmsController');
 const {
   register,
@@ -65,6 +67,7 @@ router.use(bodyParser.urlencoded({ extended: false }));
 // router.post('/sendsms', sendSms);
 // router.post('/recievesms', recieveSms);
 router.post('/api/user/generate-otp', generateOtp);
+router.post('/api/driver/generate-otp', sentOtpForDriver);
 router.get('/api/user/user-info/:id', getUserInfo);
 router.post('/api/user/verify-otp', verifyOtp);
 router.post('/api/user/verify-fp-otp', fpVerifyOtp);
@@ -128,7 +131,7 @@ router.post(
   createCustomerProfile
 );
 router.post('/api/customer/book-this-ride', isRevoked, bookTrip);
-router.put('/api/customer/edit-profile/:id', isRevoked, editCustomerProfile);
+router.put('/api/customer/edit-profile', editCustomerProfile);
 router.get('/api/customer/get-booking-log/:id', customerBookingHistory);
 router.post('/api/user/contact-us', contactUs);
 

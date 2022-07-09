@@ -182,7 +182,7 @@ exports.bookTrip = async (req, res) => {
       `SELECT "ROLE_CODE" FROM "USERS" WHERE "ID" = $1`,
       [userId]
     );
-    if (parseInt(userRole.rows[0]) !== ROLE_CODE.CUSTOMER)
+    if (parseInt(userRole.rows[0].ROLE_CODE) !== ROLE_CODE.CUSTOMER)
       return res
         .status(403)
         .json({ message: 'you are not a customer to book this trip' });

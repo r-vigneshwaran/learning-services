@@ -7,7 +7,8 @@ const {
   checkIfLicenceExists,
   checkIfUserExists,
   checkIfOthersVerified,
-  resetOthersVerified
+  resetOthersVerified,
+  findUserWithMobile
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
@@ -26,7 +27,8 @@ exports.createDriverProfile = async (req, res) => {
       licenceValidity,
       aadharNumber,
       userImage,
-      ownerShip
+      ownerShip,
+      mobile
     } = req.body;
     if (
       !name ||
@@ -40,7 +42,8 @@ exports.createDriverProfile = async (req, res) => {
       !licenceValidity ||
       !aadharNumber ||
       !userImage ||
-      !ownerShip
+      !ownerShip ||
+      !mobile
     )
       return res.status(400).json({ message: 'insufficent data' });
 
@@ -55,6 +58,14 @@ exports.createDriverProfile = async (req, res) => {
       return res
         .status(400)
         .json({ message: `origanization ${orgName} already exist` });
+
+    const mobileExists = await findUserWithMobile(mobile);
+
+    if (mobileExists.rowCount !== 0) {
+      return res
+        .status(400)
+        .json({ message: `Mobile number (${mobile}) is already taken by another user` });
+    }
 
     const newOrg = await pool.query(
       'INSERT INTO "ORGANIZATION" ("NAME","IS_ACTIVE","CODE") VALUES ($1, $2, $3) RETURNING *',
@@ -77,7 +88,7 @@ exports.createDriverProfile = async (req, res) => {
         .json({ message: 'Someone has already taken this License number' });
 
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11, "OTHERS_VERIFIED" = $12 WHERE "ID"= $13 RETURNING *',
+      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11, "OTHERS_VERIFIED" = $12, "MOBILE" = $13 WHERE "ID"= $14 RETURNING *',
       [
         newOrg.rows[0].ID,
         ROLE_NAME.DRIVER,
@@ -91,6 +102,7 @@ exports.createDriverProfile = async (req, res) => {
         city,
         name,
         false,
+        mobile,
         id
       ]
     );
@@ -245,7 +257,17 @@ exports.addVehicle = async (req, res) => {
     );
     if (uniqueVehicle.rowCount !== 0) {
       return res.status(404).json({
-        message: 'There is already one vehicle registered with this number'
+        message:
+          'There is already one vehicle registered with this register number'
+      });
+    }
+    const uniqueRC = await pool.query(
+      'SELECT * FROM "VEHICLE" WHERE "RC_VALIDITY" = $1',
+      [RcValidity]
+    );
+    if (uniqueRC.rowCount !== 0) {
+      return res.status(404).json({
+        message: 'There is already one vehicle registered with this RC number'
       });
     }
 
@@ -339,6 +361,15 @@ exports.editVehicle = async (req, res) => {
     if (uniqueVehicle.rowCount === 0) {
       return res.status(404).json({
         message: 'There is no vehicle found with this id under your profile'
+      });
+    }
+    const uniqueRC = await pool.query(
+      'SELECT * FROM "VEHICLE" WHERE "RC_VALIDITY" = $1',
+      [RcValidity]
+    );
+    if (uniqueRC.rowCount !== 0) {
+      return res.status(404).json({
+        message: 'There is already one vehicle registered with this RC number'
       });
     }
 
