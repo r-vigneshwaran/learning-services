@@ -6,3 +6,46 @@ content-type: application/json
    "emailOrMobile": "8072205938",
     "id": 101
 }
+
+###
+POST http://localhost:8000/api/verify/register HTTP/1.1
+content-type: application/json
+
+{
+   "currentStep": 2,
+   "id": 113,
+   "uniqueString": "04527"
+}
+###
+POST http://localhost:8000/api/driver/add-availability HTTP/1.1
+content-type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiODA3MjIwNTkzOCIsImlhdCI6MTY1NzU0NDQ4NiwiZXhwIjoxNjU3NTQ0Nzg2fQ.-Yj-SgQsTXgp_JC7ePPmlryV0GUk0Y6tMeytsIUhKA8
+
+{
+   "fromDate": "2022-07-11",
+   "fromLocation": "dfdf",
+   "orgId": 1,
+   "price": "232323",
+   "toDate": "2022-07-13",
+   "toLocation": "dfdfdf",
+   "userId": 140,
+   "vehicleId": 118
+}
+###
+GET http://localhost:8000/api/testing HTTP/1.1
+content-type: application/json
+###
+GET http://localhost:8000/api/get-broadcast HTTP/1.1
+content-type: application/json
+
+###
+DELETE http://localhost:8000/api/admin/delete-broadcast-message HTTP/1.1
+content-type: application/json
+
+###
+POST http://localhost:8000/api/admin/broadcast-message HTTP/1.1
+content-type: application/json
+
+{
+   "message":"Hello world"
+}

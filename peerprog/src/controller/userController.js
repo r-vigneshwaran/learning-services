@@ -32,6 +32,7 @@ exports.getUserProfileDetails = async (req, res) => {
     );
 
     res.status(200).json({
+      userInfo: userData,
       profile: userData,
       vehicles: vehicles.rowCount === 0 ? [] : vehicles.rows,
       noOfVehicles: vehicles.rowCount,
@@ -55,7 +56,7 @@ exports.contactUs = async (req, res) => {
     );
     res
       .status(200)
-      .json({ message: 'Thank you for sharing this valuable message' });
+      .json({ message: 'Thank you for sharing your valuable message' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -83,17 +84,17 @@ exports.forgotPasswordDetails = async (req, res) => {
 
   try {
     const user = await pool.query(
-      `SELECT "FP_EXPIRES_AT" FROM "USERS" WHERE "ID" = $1`,
+      `SELECT "EXPIRES_AT" FROM "USERS" WHERE "ID" = $1`,
       [id]
     );
 
-    const { FP_EXPIRES_AT } = user.rows[0];
+    const { EXPIRES_AT } = user.rows[0];
 
-    if (FP_EXPIRES_AT < Date.now()) {
-      await pool.query('UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2', [
-        null,
-        null
-      ]);
+    if (EXPIRES_AT < Date.now()) {
+      await pool.query(
+        'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "FP_CURRENT_STEP" = $3 WHERE "ID" = $4',
+        [null, null, 1, id]
+      );
       return res.status(403).json({ message: 'Otp has been Expired' });
     }
 
@@ -113,7 +114,7 @@ exports.getUserInfo = async (req, res) => {
       return res.status(401).json({ message: 'No User Found' });
     }
     const filtered = deleteSensitive(user);
-    
+
     res.status(200).json({
       userInfo: filtered
     });

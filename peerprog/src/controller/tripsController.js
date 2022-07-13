@@ -30,20 +30,6 @@ exports.addVehicleAvailability = async (req, res) => {
     if (user.rowCount === 0) {
       return res.status(401).json({ message: 'User not found' });
     }
-
-    const isVerified = user.rows[0].VERIFIED;
-    const isRegistered = user.rows[0].IS_REGISTERED;
-
-    if (!isVerified)
-      return res.status(403).json({
-        message: 'Please verify your account to add vehicle to your profile'
-      });
-
-    if (!isRegistered)
-      return res.status(403).json({
-        message: 'Please Register your account to add vehicle to your profile'
-      });
-
     const vehicle = await pool.query(
       'SELECT * FROM "VEHICLE" LEFT JOIN "VEHICLE_IMAGES" ON "VEHICLE_IMAGES"."VEHICLE_ID" = "VEHICLE"."ID" WHERE "ORG_ID" = $1 AND "VEHICLE"."ID" = $2 AND "DELETED" = $3',
       [orgId, vehicleId, false]

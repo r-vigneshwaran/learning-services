@@ -18,10 +18,8 @@ exports.createCustomerProfile = async (req, res) => {
     } = req.body;
     if (
       !name ||
-      !orgName ||
       !city ||
       !id ||
-      !code ||
       !currentStep ||
       !aadharNumber ||
       !userImage ||
@@ -29,22 +27,24 @@ exports.createCustomerProfile = async (req, res) => {
     )
       return res.status(400).json({ message: 'insufficent data' });
 
-    const organization = await pool.query(
-      'SELECT * FROM "ORGANIZATION" WHERE "CODE" = $1',
-      [code]
-    );
+    // const organization = await pool.query(
+    //   'SELECT * FROM "ORGANIZATION" WHERE "CODE" = $1',
+    //   [code]
+    // );
 
-    if (organization.rowCount === 1)
-      return res
-        .status(400)
-        .json({ message: `origanization ${orgName} already exist` });
-
-    const newOrg = await pool.query(
-      'INSERT INTO "ORGANIZATION" ("NAME","CODE") VALUES ($1, $2) RETURNING *',
-      [orgName, code]
-    );
+    // if (organization.rowCount === 1)
+    //   return res
+    //     .status(400)
+    //     .json({ message: `origanization ${orgName} already exist` });
+    let newOrg;
+    if (code) {
+      newOrg = await pool.query(
+        'INSERT INTO "ORGANIZATION" ("NAME","CODE") VALUES ($1, $2) RETURNING *',
+        [orgName, code]
+      );
+    }
     const nextStep = currentStep;
-    var orgId = newOrg.rows[0].ID;
+    var orgId = newOrg.rows[0].ID ? newOrg.rows[0].ID : 1;
     const isUniqueAadhar = await checkIfAadharExists(aadharNumber);
 
     if (isUniqueAadhar.rowCount !== 0)

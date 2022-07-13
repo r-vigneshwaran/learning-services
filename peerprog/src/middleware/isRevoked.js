@@ -23,12 +23,10 @@ exports.isRevoked = async (req, res, next) => {
       req.user = payload.user;
       const expired = await checkIfUserRevokedOrDeletedWithEmail(payload.user);
       if (expired) {
-        return res
-          .status(404)
-          .json({
-            message:
-              'Your Account has been Revoked or Deleted, please contact the admin'
-          });
+        return res.status(404).json({
+          message:
+            'Your Account has been Revoked or Deleted, please contact the admin'
+        });
       }
       next();
     }
