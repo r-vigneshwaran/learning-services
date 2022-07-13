@@ -27,6 +27,7 @@ jobs.start();
 //     callback(new Error('Not allowed by CORS'));
 //   }
 // };
+app.enable('trust proxy');
 app.use(credentials);
 app.use(cors(corsOptions));
 // app.use(cors());

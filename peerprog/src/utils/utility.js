@@ -6,6 +6,3 @@ exports.deleteSensitive = (data) => {
   delete data['rows'][0]['EXPIRES_AT'];
   return data['rows'][0];
 };
-exports.required = (params) => {
-
-};

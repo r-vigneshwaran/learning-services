@@ -7,7 +7,8 @@ const {
   checkIfLicenceExists,
   checkIfUserExists,
   checkIfOthersVerified,
-  resetOthersVerified
+  resetOthersVerified,
+  findUserWithMobile
 } = require('../utils/helper');
 const { deleteSensitive } = require('../utils/utility');
 
@@ -26,14 +27,15 @@ exports.createDriverProfile = async (req, res) => {
       licenceValidity,
       aadharNumber,
       userImage,
-      ownerShip
+      ownerShip,
+      mobile
     } = req.body;
     if (
       !name ||
       !id ||
       !orgName ||
-      !city ||
       !code ||
+      !city ||
       !currentStep ||
       !licenceNumber ||
       !yearOfExperience ||
@@ -44,22 +46,28 @@ exports.createDriverProfile = async (req, res) => {
     )
       return res.status(400).json({ message: 'insufficent data' });
 
-    await checkIfOthersVerified(id);
+    const user = await findUserWithId(id);
 
-    const organization = await pool.query(
-      'SELECT * FROM "ORGANIZATION" WHERE "CODE" = $1',
-      [code]
-    );
+    const isMobile = user.rows[0].MOBILE ? true : false;
 
-    if (organization.rowCount === 1)
-      return res
-        .status(400)
-        .json({ message: `origanization ${orgName} already exist` });
+    if (!isMobile) {
+      if (!mobile)
+        return res.status(400).json({ message: 'Mobile number is required' });
+
+      const mobileExists = await findUserWithMobile(mobile);
+
+      if (mobileExists.rowCount !== 0) {
+        return res.status(400).json({
+          message: `Mobile number (${mobile}) is already taken by another user`
+        });
+      }
+    }
 
     const newOrg = await pool.query(
       'INSERT INTO "ORGANIZATION" ("NAME","IS_ACTIVE","CODE") VALUES ($1, $2, $3) RETURNING *',
       [orgName, isActive, code]
     );
+
     const nextStep = currentStep + 1;
 
     const isUniqueAadhar = await checkIfAadharExists(aadharNumber);
@@ -77,7 +85,7 @@ exports.createDriverProfile = async (req, res) => {
         .json({ message: 'Someone has already taken this License number' });
 
     const newUser = await pool.query(
-      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11, "OTHERS_VERIFIED" = $12 WHERE "ID"= $13 RETURNING *',
+      'UPDATE "USERS" SET "ORG_ID" = $1, "ROLE" = $2, "ROLE_CODE" = $3, "CURRENT_STEP" = $4, "DRIVER_LICENCE_NO" = $5, "YEAR_OF_EXPERIENCE" = $6, "DRIVER_LICENCE_VALIDITY" = $7, "AADHAR_NUMBER" = $8, "OWNERSHIP" = $9, "CITY" = $10, "NAME" = $11, "OTHERS_VERIFIED" = $12,"OTHERS_EXPIRES_AT" = $13, "MOBILE" = $14 WHERE "ID"= $15 RETURNING *',
       [
         newOrg.rows[0].ID,
         ROLE_NAME.DRIVER,
@@ -91,6 +99,8 @@ exports.createDriverProfile = async (req, res) => {
         city,
         name,
         false,
+        null,
+        mobile,
         id
       ]
     );
@@ -108,7 +118,10 @@ exports.createDriverProfile = async (req, res) => {
       USER_IMAGE: newUserImg.rows[0].IMAGE
     };
 
-    res.json({ userInfo: newUserData });
+    res.json({
+      userInfo: newUserData,
+      message: 'Profile Created Successfully'
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -245,7 +258,17 @@ exports.addVehicle = async (req, res) => {
     );
     if (uniqueVehicle.rowCount !== 0) {
       return res.status(404).json({
-        message: 'There is already one vehicle registered with this number'
+        message:
+          'There is already one vehicle registered with this register number'
+      });
+    }
+    const uniqueRC = await pool.query(
+      'SELECT * FROM "VEHICLE" WHERE "RC_VALIDITY" = $1',
+      [RcValidity]
+    );
+    if (uniqueRC.rowCount !== 0) {
+      return res.status(404).json({
+        message: 'There is already one vehicle registered with this RC number'
       });
     }
 
@@ -271,6 +294,13 @@ exports.addVehicle = async (req, res) => {
       'INSERT INTO "VEHICLE_IMAGES" ("IMAGE", "VEHICLE_ID") VALUES($1, $2) RETURNING *',
       [vehicleImage, vehicleId]
     );
+
+    // trail
+    await pool.query(
+      'UPDATE "USERS" SET "VERIFIED" = $1, "EXPIRES_AT" = $2, "OTP" = $3 WHERE "ID" = $4',
+      [false, null, null, userId]
+    );
+    // trail
 
     const vehicleData = {
       ...vehicleDetails.rows[0],
@@ -301,7 +331,8 @@ exports.editVehicle = async (req, res) => {
     city,
     vehicleImage,
     vId,
-    userId
+    userId,
+    isAdmin
   } = req.body;
 
   if (
@@ -317,12 +348,16 @@ exports.editVehicle = async (req, res) => {
     !ownerName ||
     !city ||
     !vehicleImage ||
-    !vId ||
-    !userId
+    !vId
   )
     return res.status(404).json({ message: 'insufficient data' });
   try {
-    await checkIfOthersVerified(userId);
+    if (!isAdmin) {
+      if (!userId) {
+        return res.status(404).json({ message: 'insufficient data' });
+      }
+      await checkIfOthersVerified(userId);
+    }
     const org = await pool.query(
       'SELECT "ID" FROM "ORGANIZATION" WHERE "ID" = $1',
       [orgId]
@@ -340,6 +375,17 @@ exports.editVehicle = async (req, res) => {
       return res.status(404).json({
         message: 'There is no vehicle found with this id under your profile'
       });
+    }
+    const uniqueRC = await pool.query(
+      'SELECT "RC_VALIDITY" FROM "VEHICLE" WHERE "ID" = $1',
+      [vId]
+    );
+
+    if (uniqueRC.rowCount !== 0) {
+      if (RcValidity !== uniqueRC.rows[0].RC_VALIDITY)
+        return res.status(404).json({
+          message: 'There is already one vehicle registered with this RC number'
+        });
     }
 
     const vehicleDetails = await pool.query(
@@ -367,7 +413,9 @@ exports.editVehicle = async (req, res) => {
       [vehicleImage, vehicleId]
     );
 
-    await resetOthersVerified(userId);
+    if (!isAdmin) {
+      await resetOthersVerified(userId);
+    }
 
     const vehicleData = {
       ...vehicleDetails.rows[0],
@@ -417,20 +465,6 @@ exports.deleteVehicle = async (req, res) => {
     return res.status(404).json({ message: 'insufficient data' });
 
   try {
-    const vehicle = await pool.query(
-      'SELECT * FROM "VEHICLE" LEFT JOIN "VEHICLE_IMAGES" ON "VEHICLE_IMAGES"."VEHICLE_ID" = "VEHICLE"."ID" WHERE "ORG_ID" = $1 AND "VEHICLE"."ID" = $2 AND "DELETED" = $3',
-      [orgId, vehicleId, false]
-    );
-    if (vehicle.rowCount === 0) {
-      return res.status(200).json({
-        message: 'This profile does not own this vehicle or already deleted',
-        vehicles: []
-      });
-    }
-    // await pool.query(
-    //   `DELETE FROM "VEHICLE_IMAGES" WHERE "VEHICLE_ID" = ( SELECT "ID" from "VEHICLE" where "ID" = $1)`,
-    //   [vehicleId]
-    // );
     await pool.query('UPDATE "VEHICLE" SET "DELETED" = $1 WHERE "ID" = $2', [
       true,
       vehicleId

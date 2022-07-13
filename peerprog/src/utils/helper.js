@@ -25,6 +25,11 @@ const findUserWithRefreshToken = async (token) => {
 const findUserWithId = async (id) => {
   return await pool.query(`SELECT * FROM "USERS" WHERE "ID" = $1`, [id]);
 };
+const findUserWithMobile = async (mobile) => {
+  return await pool.query('SELECT "ID" FROM "USERS" WHERE "MOBILE" = $1', [
+    mobile
+  ]);
+};
 const checkIfUserExists = async (id) => {
   return await pool.query('SELECT "ID" FROM "USERS" WHERE "ID" = $1', [id]);
 };
@@ -151,5 +156,6 @@ module.exports = {
   resetOthersVerified,
   filterExpired,
   checkIfUserExistswithEmail,
-  decodeBase64
+  decodeBase64,
+  findUserWithMobile
 };

@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { jwtGenerator, jwtAccessGenerator } = require('../utils/jwtGenerator');
 const { ROLE_CODE, ROLE_NAME } = require('../config/userRoleCode');
-const sendVerificationcode = require('./verification');
+const { sendEmailOTP, sendMobileOTP } = require('./verification');
 const {
   updateRefreshToken,
   findUser,
@@ -52,6 +52,10 @@ exports.register = async (req, res) => {
 
     const nextStep = currentStep + 1;
     const name = 'user';
+
+    const emailResult = EMAIL_REGEX.test(email);
+    const mobileResult = MOBILE_REGEX.test(email);
+
     // 4. enter the user inside our database
     const newUser = await pool.query(
       'INSERT INTO "USERS"("NAME", "EMAIL", "PASSWORD", "REFRESH_TOKEN","ORG_ID","ROLE","IS_REGISTERED","ROLE_CODE","E_SIGN", "CURRENT_STEP") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -80,18 +84,18 @@ exports.register = async (req, res) => {
     });
     const id = userData.ID;
     let message;
-    const emailResult = EMAIL_REGEX.test(email);
-    const mobileResult = MOBILE_REGEX.test(email);
 
     if (emailResult) {
-      message = sendVerificationcode({ id, email });
+      message = sendEmailOTP(email, false);
     }
     if (mobileResult) {
-      message = sendMobileOtp({ id, mobile: email });
+      await pool.query('UPDATE "USERS" SET "MOBILE" = $1 WHERE "EMAIL" = $1', [
+        email
+      ]);
+      message = sendMobileOTP(email, false);
     }
 
     res.status(201).json({
-      otpStatus: message,
       token: access_token,
       refresh_token: refresh_token,
       userInfo: userData
@@ -337,21 +341,30 @@ exports.userForgotPassword = async (req, res) => {
         .json({ message: 'Password and confirm password should be same' });
     }
     const user = await pool.query(
-      `SELECT "PASSWORD", "FP_VERIFIED", "FP_EXPIRES_AT" FROM "USERS" WHERE "EMAIL" = $1`,
+      `SELECT "PASSWORD", "VERIFIED", "EXPIRES_AT" FROM "USERS" WHERE "EMAIL" = $1`,
       [emailOrMobile]
     );
-    if (user.rows[0].FP_EXPIRES_AT < Date.now()) {
-      console.log(user.rows[0].FP_EXPIRES_AT);
-      await pool.query(
-        'UPDATE "USERS" SET "OTP" = $1, "FP_EXPIRES_AT" = $2, "FP_CURRENT_STEP" = $3 WHERE "EMAIL" = $4',
+    if (user.rows[0].EXPIRES_AT < Date.now()) {
+      const user = await pool.query(
+        'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "FP_CURRENT_STEP" = $3 WHERE "EMAIL" = $4 RETURNING *',
         [null, null, 1, emailOrMobile]
       );
-      return res.status(403).json({ message: 'Otp has been Expired' });
-    }
-    if (!user.rows[0].FP_VERIFIED)
+      const filtered = deleteSensitive(user);
       return res
         .status(403)
-        .json({ message: 'Please verify to change password' });
+        .json({ message: 'Otp has been Expired', userInfo: filtered });
+    }
+    if (!user.rows[0].VERIFIED) {
+      const user = await pool.query(
+        'UPDATE "USERS" SET "OTP" = $1, "EXPIRES_AT" = $2, "FP_CURRENT_STEP" = $3 WHERE "EMAIL" = $4 RETURNING *',
+        [null, null, 1, emailOrMobile]
+      );
+      const filtered = deleteSensitive(user);
+      res.status(403).json({
+        message: 'Please verify to change password',
+        userInfo: filtered
+      });
+    }
 
     const validPassword = await bcrypt.compare(password, user.rows[0].PASSWORD);
     if (validPassword) {
@@ -364,11 +377,14 @@ exports.userForgotPassword = async (req, res) => {
     const salt = await bcrypt.genSalt(saltRound);
     const bcryptPassword = await bcrypt.hash(password, salt);
 
-    await pool.query(
-      `UPDATE "USERS" SET "PASSWORD" = $1, "OTP" = $2, "FP_EXPIRES_AT" = $3,"FP_VERIFIED" = $4, "FP_CURRENT_STEP" = $5 WHERE "EMAIL" = $6`,
+    const newUser = await pool.query(
+      `UPDATE "USERS" SET "PASSWORD" = $1, "OTP" = $2, "EXPIRES_AT" = $3,"VERIFIED" = $4, "FP_CURRENT_STEP" = $5 WHERE "EMAIL" = $6 RETURNING *`,
       [bcryptPassword, null, null, false, 1, emailOrMobile]
     );
-    res.status(200).json({ message: 'Password changed successfully' });
+    const filtered = deleteSensitive(newUser);
+    res
+      .status(200)
+      .json({ message: 'Password changed successfully', userInfo: filtered });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

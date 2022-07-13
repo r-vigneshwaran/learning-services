@@ -2,7 +2,17 @@ const {
   generateOtp,
   verifyOtp,
   resetVerification,
-  fpVerifyOtp
+  fpVerifyOtp,
+  sentOtpTest,
+  sentOtpForDriver,
+  checkIfMobile,
+  fpVerifyDriverMobileOtp,
+  verifyAddVehicleOTP,
+  generateOneTimePassword,
+  verifyOneTimePassword,
+  reset,
+  verifyForgotPasswordOneTimePassword,
+  isVerified
 } = require('./controller/SmsController');
 const {
   register,
@@ -25,7 +35,8 @@ const {
   home,
   largeVehicles,
   smallVehicles,
-  testing
+  testing,
+  getBroadcastMessage
 } = require('./controller/dashboard');
 const {
   addVehicle,
@@ -65,8 +76,10 @@ router.use(bodyParser.urlencoded({ extended: false }));
 // router.post('/sendsms', sendSms);
 // router.post('/recievesms', recieveSms);
 router.post('/api/user/generate-otp', generateOtp);
+router.post('/api/driver/generate-otp', sentOtpForDriver);
+router.post('/api/user/mobile-or-email/:id', checkIfMobile);
 router.get('/api/user/user-info/:id', getUserInfo);
-router.post('/api/user/verify-otp', verifyOtp);
+router.post('/api/user/verify-driver-otp', fpVerifyDriverMobileOtp);
 router.post('/api/user/verify-fp-otp', fpVerifyOtp);
 router.post('/api/user/reset-verification', resetVerification);
 router.post('/api/user/user-forgot-password', userForgotPassword);
@@ -81,14 +94,16 @@ router.get('/api/auth/logout', logout);
 
 // verification
 router.post('/api/user/verify', verifyEmail);
+router.post('/api/user/add-vehicle-verify', verifyAddVehicleOTP);
 router.post('/api/user/delete-user/:id', deleteUser);
 
 // dashboard routes
 router.get('/api/dashboard', home);
-router.post('/api/testing', testing);
+router.get('/api/testing', testing);
 router.get('/api/home/large-vehicles', largeVehicles);
 router.get('/api/home/small-vehicles', smallVehicles);
 router.post('/api/get-trip-details', getSpecificTripDetails);
+router.get('/api/get-broadcast', getBroadcastMessage);
 
 // user route
 router.get(
@@ -128,8 +143,21 @@ router.post(
   createCustomerProfile
 );
 router.post('/api/customer/book-this-ride', isRevoked, bookTrip);
-router.put('/api/customer/edit-profile/:id', isRevoked, editCustomerProfile);
+router.put('/api/customer/edit-profile', editCustomerProfile);
 router.get('/api/customer/get-booking-log/:id', customerBookingHistory);
 router.post('/api/user/contact-us', contactUs);
+
+router.post('/api/send-otp/register', generateOneTimePassword); // id, emailOrMobile
+router.post('/api/send-otp/driver-mobile-number', generateOneTimePassword); // id, emailOrMobile, checkIfMobileExists
+router.post('/api/send-otp/add-vehicle', generateOneTimePassword); // id, emailOrMobile
+router.post('/api/send-otp/forgot-password', generateOneTimePassword); // emailOrMobile
+
+router.post('/api/verify/register', verifyOneTimePassword); // id, uniqueString
+router.post('/api/verify/driver-mobile-number', verifyOneTimePassword); // id, uniqueString
+router.post('/api/verify/add-vehicle', verifyOneTimePassword); // id, uniqueString
+router.post('/api/verify/forgot-password', verifyForgotPasswordOneTimePassword); // emailOrMobile, uniqueString
+
+router.post('/api/verify/reset', reset); // emailOrMobile , id
+router.get('/api/verify/is-verified/:id', isVerified); // id
 
 module.exports = router;

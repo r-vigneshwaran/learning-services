@@ -5,6 +5,8 @@ const {
   checkIfUserRevoked,
   findUser
 } = require('../utils/helper');
+const fast2sms = require('fast-two-sms');
+require('dotenv').config();
 const { deleteSensitive } = require('../utils/utility');
 const bcrypt = require('bcrypt');
 const { ROLE_CODE } = require('../config/userRoleCode');
@@ -23,13 +25,18 @@ exports.adminDashboard = async (req, res) => {
     const vehicles = await pool.query(`SELECT COUNT("ID") FROM "VEHICLE"`);
     const trips = await pool.query(`SELECT COUNT("ID") FROM "TRIPS"`);
     const bookings = await pool.query(`SELECT COUNT("ID") FROM "BOOKING"`);
+    const { wallet } = await fast2sms.getWalletBalance(
+      process.env.FAST2SMS_API_KEY
+    );
     res.status(200).json({
       usersCount: parseInt(users.rows[0].count),
       customersCount: parseInt(customers.rows[0].count),
       driversCount: parseInt(drivers.rows[0].count),
       vehiclesCount: parseInt(vehicles.rows[0].count),
       tripsCount: parseInt(trips.rows[0].count),
-      bookingsCount: parseInt(bookings.rows[0].count)
+      bookingsCount: parseInt(bookings.rows[0].count),
+      wallet: wallet,
+      estimatedMessages: parseInt(wallet) * 5
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -288,16 +295,17 @@ exports.getVehicleDetails = async (req, res) => {
     [id]
   );
 
-  if (vehicle.rowCount === 0) {
+  if (vehicle.rowCount === 0 && vehicle.rows[0]?.DELETED) {
     return res.status(404).json({ message: 'Vehicle Not Found' });
   }
-  const orgId = vehicle.rows[0].ORG_ID;
+
+  const orgId = vehicle.rows[0]?.ORG_ID;
 
   const userDetails = await pool.query(
     'SELECT "ID" FROM "USERS" WHERE "ORG_ID" = $1',
     [orgId]
   );
-  const userId = userDetails.rows[0].ID;
+  const userId = userDetails.rows[0]?.ID;
 
   const user = await pool.query(
     `SELECT "U"."ID" AS "USER_ID", "U"."NAME" AS "USER_NAME", "U"."EMAIL", "U"."CITY", "UI"."IMAGE" AS "USER_IMAGE" FROM "USERS" "U" LEFT JOIN "USER_IMAGES" "UI" ON "U"."ID" = "UI"."USER_ID" WHERE "U"."ID" = $1 `,
@@ -539,7 +547,6 @@ exports.editUserProfile = async (req, res) => {
       !code ||
       !orgId ||
       !email ||
-      !mobile ||
       !city
     )
       return res.status(400).json({ message: 'insufficent data' });
@@ -560,7 +567,7 @@ exports.editUserProfile = async (req, res) => {
       'UPDATE "ORGANIZATION" SET "NAME" = $1, "CODE" = $2 WHERE "ID" = $3 RETURNING "NAME" AS "ORG_NAME"',
       [orgName, code, orgId]
     );
-
+    const finalMobile = mobile ? mobile : null;
     const newUser = await pool.query(
       'UPDATE "USERS" SET "NAME" = $1, "DRIVER_LICENCE_NO" = $2, "YEAR_OF_EXPERIENCE" = $3, "DRIVER_LICENCE_VALIDITY" = $4, "AADHAR_NUMBER" = $5, "OWNERSHIP" = $6, "EMAIL" = $7, "MOBILE" = $8, "CITY" = $9  WHERE "ID"= $10 RETURNING *,"NAME" AS "USER_NAME"',
       [
@@ -571,7 +578,7 @@ exports.editUserProfile = async (req, res) => {
         aadharNumber,
         ownerShip,
         email,
-        mobile,
+        finalMobile,
         city,
         id
       ]
@@ -749,4 +756,80 @@ exports.writeMessage = async (req, res) => {
   }, '');
 
   res.json({ results: result });
+};
+
+exports.getSocialMediaAccounts = async (req, res) => {
+  try {
+    const accounts = await pool.query('SELECT * FROM "SOCIAL_MEDIA_ACCOUNTS"');
+    res.json({ accounts: accounts.rows });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.editSocialMediaAccounts = async (req, res) => {
+  const { email, instagram, facebook, twitter } = req.body;
+  try {
+    const accounts = await pool.query('SELECT * FROM "SOCIAL_MEDIA_ACCOUNTS"');
+
+    const isEmail = accounts.rows.find((i) => i.NAME === 'EMAIL');
+    const isInstagram = accounts.rows.find((i) => i.NAME === 'INSTAGRAM');
+    const isFacebook = accounts.rows.find((i) => i.NAME === 'FACEBOOK');
+    const isTwitter = accounts.rows.find((i) => i.NAME === 'TWITTER');
+    if (isEmail.ADDRESS !== email) {
+      await pool.query(
+        'UPDATE "SOCIAL_MEDIA_ACCOUNTS" SET "ADDRESS" = $1 WHERE "NAME" = $2',
+        [email, 'EMAIL']
+      );
+    }
+    if (isInstagram.ADDRESS !== instagram) {
+      await pool.query(
+        'UPDATE "SOCIAL_MEDIA_ACCOUNTS" SET "ADDRESS" = $1 WHERE "NAME" = $2',
+        [instagram, 'INSTAGRAM']
+      );
+    }
+    if (isFacebook.ADDRESS !== facebook) {
+      await pool.query(
+        'UPDATE "SOCIAL_MEDIA_ACCOUNTS" SET "ADDRESS" = $1 WHERE "NAME" = $2',
+        [facebook, 'FACEBOOK']
+      );
+    }
+    if (isTwitter.ADDRESS !== twitter) {
+      await pool.query(
+        'UPDATE "SOCIAL_MEDIA_ACCOUNTS" SET "ADDRESS" = $1 WHERE "NAME" = $2',
+        [twitter, 'TWITTER']
+      );
+    }
+    const currentAccounts = await pool.query(
+      'SELECT * FROM "SOCIAL_MEDIA_ACCOUNTS"'
+    );
+    res.json({
+      accounts: currentAccounts.rows,
+      message: 'Account Address Updated Successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.broadcastMessage = async (req, res) => {
+  const { message } = req.body;
+  try {
+    await pool.query('DELETE FROM "BROADCAST"');
+    await pool.query('INSERT INTO "BROADCAST" ("MESSAGE") VALUES($1)', [
+      message
+    ]);
+    res.json({ message: 'Message Broadcasted Successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteBroadcastMessage = async (req, res) => {
+  try {
+    await pool.query('DELETE FROM "BROADCAST"');
+    res.json({ message: 'Broadcasted Message Deleted Successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

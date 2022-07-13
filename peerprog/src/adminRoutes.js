@@ -24,8 +24,13 @@ const {
   getBookings,
   getBookingDetails,
   writeMessage,
-  adminDashboard
+  adminDashboard,
+  getSocialMediaAccounts,
+  editSocialMediaAccounts,
+  broadcastMessage,
+  deleteBroadcastMessage
 } = require('./controller/adminController');
+const { getVehicleInfo } = require('./controller/driverController');
 const { isRevoked } = require('./middleware/isRevoked');
 
 // admin route
@@ -53,5 +58,9 @@ router.put('/edit-user/:id', editUserProfile);
 router.put('/edit-organization', editOrg);
 router.post('/write-message', writeMessage);
 router.get('/get-dashboard-details', adminDashboard);
+router.get('/get-social-media-accounts', getSocialMediaAccounts);
+router.put('/edit-social-media-accounts', editSocialMediaAccounts);
+router.post('/write-broadcast', broadcastMessage);
+router.delete('/delete-broadcast-message', deleteBroadcastMessage);
 
 module.exports = router;
